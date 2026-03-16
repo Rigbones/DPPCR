@@ -56,7 +56,7 @@ class KDE_Estimator:
         if not self.is_fitted:
             raise RuntimeError("Call fit(...) before sample(...).")
         samples = self.kde.sample(num_samples)
-        log_`prob = self.kde.score_samples(samples)
+        log_prob = self.kde.score_samples(samples)
         return samples, log_prob
 
     # def to(self, device):
