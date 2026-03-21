@@ -2,27 +2,53 @@ import numpy as np
 import torch
 
 def add_noise(xyz, seed):
-    rng = np.random.default_rng(seed=seed)
-    mean = torch.mean(xyz, axis=0)
-    std = torch.std(xyz, axis=0)
-    size = int(xyz.shape[0] * 0.02)
-    noise = rng.normal(loc=mean.cpu().numpy(), scale=std.cpu().numpy(), size=(size, 3))
-    return torch.concat([xyz, torch.from_numpy(noise).to(device=xyz.device, dtype=torch.float32)], axis=0)
+    """
+    Args:
+        xyz (np.ndarray | torch.Tensor): point cloud of shape (N, 3)
+        seed (int): random seed for reproducibility
+    Returns:
+        np.ndarray | torch.Tensor: point cloud of shape (N, 3) with 2% Gaussian noise added
+    """
+    if (isinstance(xyz, np.ndarray)):
+        rng = np.random.default_rng(seed=seed)
+        mean = np.mean(xyz, axis=0)
+        std = np.std(xyz, axis=0)
+        size = int(xyz.shape[0] * 0.02)
+        noise = rng.normal(loc=mean, scale=std, size=(size, 3))
+        return np.concat([xyz, noise], axis=0)
+    elif (isinstance(xyz, torch.Tensor)):
+        rng = np.random.default_rng(seed=seed)
+        mean = torch.mean(xyz, axis=0)
+        std = torch.std(xyz, axis=0)
+        size = int(xyz.shape[0] * 0.02)
+        noise = rng.normal(loc=mean.cpu().numpy(), scale=std.cpu().numpy(), size=(size, 3))
+        return torch.concat([xyz, torch.from_numpy(noise).to(device=xyz.device, dtype=torch.float32)], axis=0)
+    else:
+        raise TypeError(f"Expected np.ndarray or torch.Tensor, but found {type(xyz)}")
+
 
 def jitter(xyz, seed):
     """ 
     Adds 2% Gaussian jitter to a point cloud.
     Args:
-        xyz (np.ndarray): point cloud of shape (N, 3)
+        xyz (np.ndarray | torch.Tensor): point cloud of shape (N, 3)
         seed (int): random seed for reproducibility
 
     Returns:
-        np.ndarray: point cloud of shape (N, 3) with Gaussian jitter added	
+        np.ndarray | torch.Tensor: point cloud of shape (N, 3) with Gaussian jitter added
     """
-    rng = np.random.default_rng(seed=seed)
-    min_std = torch.std(xyz, axis=0).min()
-    jitter = torch.from_numpy(rng.normal(loc=[0, 0, 0], scale=0.02 * min_std.cpu().numpy(), size=xyz.shape)).to(dtype=xyz.dtype, device=xyz.device)
-    return xyz + jitter
+    if (isinstance(xyz, np.ndarray)):
+        rng = np.random.default_rng(seed=seed)
+        min_std = np.std(xyz, axis=0).min()
+        jitter = rng.normal(loc=[0, 0, 0], scale=0.02 * min_std, size=xyz.shape)
+        return xyz + jitter
+    elif (isinstance(xyz, torch.Tensor)):
+        rng = np.random.default_rng(seed=seed)
+        min_std = torch.std(xyz, axis=0).min()
+        jitter = torch.from_numpy(rng.normal(loc=[0, 0, 0], scale=0.02 * min_std.cpu().numpy(), size=xyz.shape)).to(dtype=xyz.dtype, device=xyz.device)
+        return xyz + jitter 
+    else:
+        raise TypeError(f"Expected np.ndarray or torch.Tensor, but found {type(xyz)}")
 
 def quaternion_to_matrix(quaternions):
     """
