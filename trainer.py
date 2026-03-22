@@ -169,11 +169,11 @@ def DP_PCR(X, Y, device='cuda:0'):
     f6 = learn_pdf((X-X.mean(axis=0))[:, 1:3], model='KDE', device=device)
     f7 = learn_pdf((X-X.mean(axis=0))[:, [0, 2]], model='KDE', device=device)
 
-    register(X, Y, f1, f2, f3, f4, f5, f6, f7, g1, g2, g3, g4, g5, g6, g7, epochs=1000, batch_size=7000, device=device)
+    register(X, Y, f1, f2, f3, f4, f5, f6, f7, g1, g2, g3, g4, g5, g6, g7, epochs=1500, batch_size=7000, device=device)
 
 def register(X_og, Y_og, f1, f2, f3, f4, f5, f6, f7, g1, g2, g3, g4, g5, g6, g7, epochs=3000, batch_size=20_000, device="cuda:0"):
     """X and Y are shape (N, 3) and (M, 3)"""   
-    debug_interval = 20
+    debug_interval = 500
 
     _og_pos = Y_og.mean(axis=0)     
     _og_scale = torch.linalg.norm(Y_og - _og_pos, axis=1).mean()
@@ -313,8 +313,6 @@ def register(X_og, Y_og, f1, f2, f3, f4, f5, f6, f7, g1, g2, g3, g4, g5, g6, g7,
                 # xy, yz, zr
                 _ = ax5.hist2d((X-X.mean(axis=0))[:, 0].detach().cpu().numpy(), (X-X.mean(axis=0))[:, 1].detach().cpu().numpy(), bins=100)
                 _ = ax9.hist2d((Y_og-Y_og.mean(axis=0))[:, 0].detach().cpu().numpy(), (Y_og-Y_og.mean(axis=0))[:, 1].detach().cpu().numpy(), bins=100)
-                ax5.set_xlim(ax9.get_xlim())
-                ax5.set_ylim(ax9.get_ylim())
                 ax5.set_title("XY Projection (pred)")
                 ax9.set_title("XY Projection ( GT )")
 
@@ -328,7 +326,7 @@ def register(X_og, Y_og, f1, f2, f3, f4, f5, f6, f7, g1, g2, g3, g4, g5, g6, g7,
                 ax7.set_title("XZ Projection (pred)")
                 ax11.set_title("XZ Projection ( GT )")
 
-                fig.savefig(f"E{epoch}.png")
+                fig.savefig(f"figs/E{epoch}.png")
                 plt.close('all')
 
                 # if (input() == 'q'):
@@ -343,7 +341,7 @@ def register(X_og, Y_og, f1, f2, f3, f4, f5, f6, f7, g1, g2, g3, g4, g5, g6, g7,
             [X_og.detach().cpu().numpy(), Y_og.detach().cpu().numpy()],
             ['blue', 'red'],
             show = False,
-            save = f"E{epochs}_original.png",
+            save = f"figs/E{epochs}_original.png",
             marker_size = 0.7
         )
 
@@ -352,9 +350,9 @@ def register(X_og, Y_og, f1, f2, f3, f4, f5, f6, f7, g1, g2, g3, g4, g5, g6, g7,
             [((H.H[:3, :3] @ X_og.T).T + H.H[:3, 3]).detach().cpu().numpy(), Y_og.detach().cpu().numpy()],
             ['blue', 'red'],
             show = False,
-            save = f"E{epochs}_result.png",
+            save = f"figs/E{epochs}_result.png",
             marker_size = 0.7
         )
 
-    np.savetxt(f"rigid.txt", H.H.cpu().numpy())
+    np.savetxt(f"pred.txt", H.H.cpu().numpy())
 

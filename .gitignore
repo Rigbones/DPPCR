@@ -1,5 +1,7 @@
 /datasets/
 /__pycache__/
 /.vscode/
+/figs/
 *.png
 *.ipynb
+TODO.txt

@@ -9,4 +9,4 @@ in
 /home/jchang/miniconda3/envs/flow/lib/python3.11/site-packages/torchkde/modules.py
 in function `score_samples`
 add 1e-8, change to 
-log_density.append((density + 1e-8).log())
+log_density.append((density + 1e-8 ** X.shape[1]).log())

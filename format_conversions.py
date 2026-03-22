@@ -15,14 +15,14 @@ def off_to_ply(off_path: str, ply_path: str, num_pts: int = 30_000):
     pcd = mesh.sample_points_uniformly(number_of_points=density)
     o3d.io.write_point_cloud(ply_path, pcd, write_ascii=True)
 
-def np_to_ply(xyz: np.ndarray, ply_path: str):
+def np_to_ply(ply_path: str, xyz: np.ndarray):
     """
     Saves a NumPy array of shape (N, 3) as a PLY point cloud.
     No color information is saved.
 
     Args:
-        xyz (np.ndarray): point cloud of shape (N, 3)
         ply_path (str): path to save the PLY file
+        xyz (np.ndarray): point cloud of shape (N, 3)
     """
     num_pts = xyz.shape[0]
 
