@@ -4,4 +4,5 @@
 /figs/
 *.png
 *.ipynb
+*.txt
 TODO.txt

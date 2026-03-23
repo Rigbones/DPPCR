@@ -48,33 +48,38 @@ def compute_metrics(X, Y, pred, gt):
 
     return np.array([R_error, S_error, T_error, chamfer_dist])
 
+def compute_metrics_one_more_icp(X, Y, pred, gt):
+    """
+    Same as 'compute_metrics' but applies one more iteration of ICP
+    """
+    X = (pred[:3, :3] @ X.T).T + pred[:3, 3]
+    # apply one iteration of regular ICP
+    from tempfile import NamedTemporaryFile
+    from subprocess import run
+    with NamedTemporaryFile(suffix='.ply') as file1, NamedTemporaryFile(suffix='.ply') as file2, NamedTemporaryFile(suffix='.txt') as out:
+        np_to_ply(file1.name, X)
+        np_to_ply(file2.name, Y)
+        run(['./FRICP', file2.name, file1.name, out.name, '0'])
+        icp_pred = np.loadtxt(out.name)
 
-from utils import axis_angle_to_matrix, jitter, add_noise
-from format_conversions import ply_to_np
-import numpy as np
-from main import random_rigid
+    X = (icp_pred[:3, :3] @ X.T).T + icp_pred[:3, 3]
+    visualize([X, Y], ['blue', 'red'], show=False, save="del.png")
+    return compute_metrics(X, Y, icp_pred @ pred, gt)
 
-Y = ply_to_np("datasets/smol/sofa_0681.ply")
-seed = int("sofa_0681.ply".split('_')[-1].split('.')[0]) # eg get 0681 from sofa_0681.ply
-X, _ = random_rigid(Y, seed=seed, noise_jitter=False) # get transformed X without the applied transformation matrix
 
-applied = np.loadtxt('applied.txt')
-pred = np.loadtxt('pred.txt')
+# from utils import axis_angle_to_matrix, jitter, add_noise
+# from format_conversions import ply_to_np
+# import numpy as np
+# from main import random_rigid
 
-# apply one iteration of regular ICP
-from tempfile import NamedTemporaryFile
-from subprocess import run
-with NamedTemporaryFile(suffix='.ply') as file1, NamedTemporaryFile(suffix='.ply') as file2, NamedTemporaryFile(suffix='.txt') as out:
-    np_to_ply(file1.name, (pred[:3, :3] @ X.T).T + pred[:3, 3])
-    np_to_ply(file2.name, Y)
-    run(['./FRICP', file2.name, file1.name, out.name, '0'])
-    icp_pred = np.loadtxt(out.name)
+# Y = ply_to_np("datasets/smol/sofa_0681.ply")
+# seed = int("sofa_0681.ply".split('_')[-1].split('.')[0]) # eg get 0681 from sofa_0681.ply
+# X, _ = random_rigid(Y, seed=seed, noise_jitter=False) # get transformed X without the applied transformation matrix
 
-X = ((icp_pred @ pred)[:3, :3] @ X.T).T + (icp_pred @ pred)[:3, 3]
+# applied = np.loadtxt('applied.txt')
+# pred = np.loadtxt('pred.txt')
 
-visualize([X, Y], ['blue', 'red'], show=False, save="del.png")
-
-np.set_printoptions(precision=4, suppress=True)
-print(
-    compute_metrics(X, Y, icp_pred @ pred, applied)
-)
+# np.set_printoptions(precision=4, suppress=True)
+# print(
+#     compute_metrics_one_more_icp(X, Y, pred, applied)
+# )

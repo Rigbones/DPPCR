@@ -169,11 +169,11 @@ def DP_PCR(X, Y, device='cuda:0'):
     f6 = learn_pdf((X-X.mean(axis=0))[:, 1:3], model='KDE', device=device)
     f7 = learn_pdf((X-X.mean(axis=0))[:, [0, 2]], model='KDE', device=device)
 
-    register(X, Y, f1, f2, f3, f4, f5, f6, f7, g1, g2, g3, g4, g5, g6, g7, epochs=1500, batch_size=7000, device=device)
+    return register(X, Y, f1, f2, f3, f4, f5, f6, f7, g1, g2, g3, g4, g5, g6, g7, epochs=1500, batch_size=8000, device=device)
 
 def register(X_og, Y_og, f1, f2, f3, f4, f5, f6, f7, g1, g2, g3, g4, g5, g6, g7, epochs=3000, batch_size=20_000, device="cuda:0"):
     """X and Y are shape (N, 3) and (M, 3)"""   
-    debug_interval = 500
+    debug_interval = 50
 
     _og_pos = Y_og.mean(axis=0)     
     _og_scale = torch.linalg.norm(Y_og - _og_pos, axis=1).mean()
@@ -354,5 +354,6 @@ def register(X_og, Y_og, f1, f2, f3, f4, f5, f6, f7, g1, g2, g3, g4, g5, g6, g7,
             marker_size = 0.7
         )
 
-    np.savetxt(f"pred.txt", H.H.cpu().numpy())
+    # np.savetxt(f"pred.txt", H.H.cpu().numpy())
+    return H.H.cpu().numpy()
 

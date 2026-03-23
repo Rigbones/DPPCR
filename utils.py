@@ -1,6 +1,21 @@
 import numpy as np
 import torch
 
+def shuffle(xyz, seed):
+    """
+    Args:
+        xyz (np.ndarray | torch.Tensor): point cloud of shape (N, 3)
+        seed (int): random seed for reproducibility
+    Returns:
+        np.ndarray | torch.Tensor: point cloud of shape (N, 3) with points shuffled
+    """
+    if (isinstance(xyz, np.ndarray) or isinstance(xyz, torch.Tensor)):
+        rng = np.random.default_rng(seed=seed)
+        indices = rng.permutation(xyz.shape[0])
+        return xyz[indices]
+    else:
+        raise TypeError(f"Expected np.ndarray or torch.Tensor, but found {type(xyz)}")
+
 def add_noise(xyz, seed):
     """
     Args:
