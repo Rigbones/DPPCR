@@ -50,7 +50,8 @@ def visualize(xyz, rgb=None, marker_size=0.5, axes=False, show=True, save=None, 
     # concatenate all xyz and rgb
     xyz = np.concat(xyz, axis=0)
     rgb = np.concat(_rgb, axis=0)
-    print(f"Visualizing a NumPy array of shape {xyz.shape}, rgb of shape {rgb.shape}")
+    if (save is None):
+        print(f"Visualizing a NumPy array of shape {xyz.shape}, rgb of shape {rgb.shape}")
 
     fig = go.Figure(
         data=[

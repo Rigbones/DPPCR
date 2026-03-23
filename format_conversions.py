@@ -53,3 +53,10 @@ def ply_to_np(ply_path: str):
     ply = PlyData.read(ply_path)
     v = ply["vertex"].data
     return np.stack([v["x"], v["y"], v["z"]], axis=1)
+
+def np_to_xyz(xyz_path, xyz):
+    """ Saves a NumPy array of shape (N, 3) as an XYZ point cloud file. No color information is saved. """
+    with open(xyz_path, 'w') as f:
+        for i in range(0, xyz.shape[0]):
+            x, y, z = xyz[i]
+            f.write(f'{x} {y} {z}\n')

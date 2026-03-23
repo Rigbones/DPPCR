@@ -11,7 +11,7 @@ def compute_metrics(X, Y, pred, gt):
     Compute rotation, translation, scale and chamfer distance metrics between two point clouds X and Y.
     Translation error is L2 of centroid, scale is absolute difference of scale, chamfer distance uses PyTorch3D's chamfer_distance
     Args:
-        X (np.ndarray): source point cloud of shape (N, 3)
+        X (np.ndarray): cleaned source point cloud of shape (N, 3), without estimated rigid transformation 'pred' applied
         Y (np.ndarray): target point cloud of shape (N, 3)
         pred (np.ndarray): shape (4, 4) predicted homogeneous transformation matrix, where applying pred to X should align with Y
         gt (np.ndarray): shape (4, 4) ground truth homogeneous transformation matrix
@@ -22,6 +22,11 @@ def compute_metrics(X, Y, pred, gt):
             - translation error, and 
             - chamfer distance
     """
+    pred = copy.deepcopy(pred)
+    gt = copy.deepcopy(gt)
+    
+    X = (pred[:3, :3] @ X.T).T + pred[:3, 3] # apply pred to X
+
     # compute scale error 
     S_pred = np.linalg.det(pred[:3, :3]) ** (1/3)
     S_gt = np.linalg.det(gt[:3, :3]) ** (1/3)
@@ -48,38 +53,18 @@ def compute_metrics(X, Y, pred, gt):
 
     return np.array([R_error, S_error, T_error, chamfer_dist])
 
-def compute_metrics_one_more_icp(X, Y, pred, gt):
-    """
-    Same as 'compute_metrics' but applies one more iteration of ICP
-    """
-    X = (pred[:3, :3] @ X.T).T + pred[:3, 3]
-    # apply one iteration of regular ICP
-    from tempfile import NamedTemporaryFile
-    from subprocess import run
-    with NamedTemporaryFile(suffix='.ply') as file1, NamedTemporaryFile(suffix='.ply') as file2, NamedTemporaryFile(suffix='.txt') as out:
-        np_to_ply(file1.name, X)
-        np_to_ply(file2.name, Y)
-        run(['./FRICP', file2.name, file1.name, out.name, '0'])
-        icp_pred = np.loadtxt(out.name)
+# def compute_metrics_one_more_icp(X, Y, pred, gt):
+#     """
+#     Same as 'compute_metrics' but applies one more iteration of ICP
+#     """
+#     X_pred = (pred[:3, :3] @ X.T).T + pred[:3, 3]
+#     # apply one iteration of regular ICP
+#     from tempfile import NamedTemporaryFile
+#     from subprocess import run
+#     with NamedTemporaryFile(suffix='.ply') as file1, NamedTemporaryFile(suffix='.ply') as file2, NamedTemporaryFile(suffix='.txt') as out:
+#         np_to_ply(file1.name, X_pred)
+#         np_to_ply(file2.name, Y)
+#         run(['./FRICP', file2.name, file1.name, out.name, '0'])
+#         icp_pred = np.loadtxt(out.name)
 
-    X = (icp_pred[:3, :3] @ X.T).T + icp_pred[:3, 3]
-    visualize([X, Y], ['blue', 'red'], show=False, save="del.png")
-    return compute_metrics(X, Y, icp_pred @ pred, gt)
-
-
-# from utils import axis_angle_to_matrix, jitter, add_noise
-# from format_conversions import ply_to_np
-# import numpy as np
-# from main import random_rigid
-
-# Y = ply_to_np("datasets/smol/sofa_0681.ply")
-# seed = int("sofa_0681.ply".split('_')[-1].split('.')[0]) # eg get 0681 from sofa_0681.ply
-# X, _ = random_rigid(Y, seed=seed, noise_jitter=False) # get transformed X without the applied transformation matrix
-
-# applied = np.loadtxt('applied.txt')
-# pred = np.loadtxt('pred.txt')
-
-# np.set_printoptions(precision=4, suppress=True)
-# print(
-#     compute_metrics_one_more_icp(X, Y, pred, applied)
-# )
+#     return compute_metrics(X, Y, icp_pred @ pred, gt)
