@@ -169,12 +169,12 @@ def DP_PCR(X, Y, device='cuda:0'):
     f6 = learn_pdf((X-X.mean(axis=0))[:, 1:3], model='KDE', device=device)
     f7 = learn_pdf((X-X.mean(axis=0))[:, [0, 2]], model='KDE', device=device)
 
-    return register(X, Y, f1, f2, f3, f4, f5, f6, f7, g1, g2, g3, g4, g5, g6, g7, epochs=300, batch_size=20_000, device=device)
+    return register(X, Y, f1, f2, f3, f4, f5, f6, f7, g1, g2, g3, g4, g5, g6, g7, epochs=300, batch_size=8_000, device=device)
 
-def register(X_og, Y_og, f1, f2, f3, f4, f5, f6, f7, g1, g2, g3, g4, g5, g6, g7, epochs=3000, batch_size=20_000, device="cuda:0"):
+def register(X_og, Y_og, f1, f2, f3, f4, f5, f6, f7, g1, g2, g3, g4, g5, g6, g7, epochs=3000, batch_size=20_000, big_gpu=False, device="cuda:0"):
     """X and Y are shape (N, 3) and (M, 3)"""   
     debug_interval = 20
-    debug = True
+    debug = False
 
     _og_pos = Y_og.mean(axis=0)     
     _og_scale = torch.linalg.norm(Y_og - _og_pos, axis=1).mean()
@@ -232,69 +232,97 @@ def register(X_og, Y_og, f1, f2, f3, f4, f5, f6, f7, g1, g2, g3, g4, g5, g6, g7,
         loss_rot = 0.0
         loss_scale = 0.0
 
-        # do backprop for each loss component separately to greatly reduce GPU ram usage
-
-        # trans losses
-        temp = -torch.mean( g1.log_prob(x1_batch.unsqueeze(1) + d.x) )
-        if ~(torch.isnan(temp) | torch.isinf(temp)):
-            temp.backward()
-            loss_trans += temp.item()
-        temp = -torch.mean( g2.log_prob(x2_batch.unsqueeze(1) + d.y) )
-        if ~(torch.isnan(temp) | torch.isinf(temp)):
-            temp.backward()
-            loss_trans += temp.item()
-        temp = -torch.mean( g3.log_prob(x3_batch.unsqueeze(1) + d.z) )
-        if ~(torch.isnan(temp) | torch.isinf(temp)):
-            temp.backward()
-            loss_trans += temp.item()
-        temp = -torch.mean( f1.log_prob(y1_batch.unsqueeze(1) - d.x) )
-        if ~(torch.isnan(temp) | torch.isinf(temp)):
-            temp.backward()
-            loss_trans += temp.item()
-        temp = -torch.mean( f2.log_prob(y2_batch.unsqueeze(1) - d.y) )
-        if ~(torch.isnan(temp) | torch.isinf(temp)):
-            temp.backward()
-            loss_trans += temp.item()
-        temp = -torch.mean( f3.log_prob(y3_batch.unsqueeze(1) - d.z) )
-        if ~(torch.isnan(temp) | torch.isinf(temp)):
-            temp.backward()
-            loss_trans += temp.item()
-        
-        # scale losses
-        temp = -torch.mean( g4.log_prob((d.r).exp() * x4_batch.unsqueeze(1)) )
-        if ~(torch.isnan(temp) | torch.isinf(temp)):
-            temp.backward()
-            loss_scale += temp.item()
-        temp = - torch.mean( f4.log_prob((-d.r).exp() * y4_batch.unsqueeze(1)) ) 
-        if ~(torch.isnan(temp) | torch.isinf(temp)):
-            temp.backward()
-            loss_scale += temp.item()
+        if (not big_gpu): # longer running time but much less GPU memory usage
+            # does backprop for each loss component separately to greatly reduce GPU ram usage
+            # trans losses
+            temp = -torch.mean( g1.log_prob(x1_batch.unsqueeze(1) + d.x) )
+            if ~(torch.isnan(temp) | torch.isinf(temp)):
+                temp.backward()
+                loss_trans += temp.item()
+            temp = -torch.mean( g2.log_prob(x2_batch.unsqueeze(1) + d.y) )
+            if ~(torch.isnan(temp) | torch.isinf(temp)):
+                temp.backward()
+                loss_trans += temp.item()
+            temp = -torch.mean( g3.log_prob(x3_batch.unsqueeze(1) + d.z) )
+            if ~(torch.isnan(temp) | torch.isinf(temp)):
+                temp.backward()
+                loss_trans += temp.item()
+            temp = -torch.mean( f1.log_prob(y1_batch.unsqueeze(1) - d.x) )
+            if ~(torch.isnan(temp) | torch.isinf(temp)):
+                temp.backward()
+                loss_trans += temp.item()
+            temp = -torch.mean( f2.log_prob(y2_batch.unsqueeze(1) - d.y) )
+            if ~(torch.isnan(temp) | torch.isinf(temp)):
+                temp.backward()
+                loss_trans += temp.item()
+            temp = -torch.mean( f3.log_prob(y3_batch.unsqueeze(1) - d.z) )
+            if ~(torch.isnan(temp) | torch.isinf(temp)):
+                temp.backward()
+                loss_trans += temp.item()
             
-        # rotation losses
-        temp = - torch.mean( g5.log_prob((mat(d.tx, 0.0, 0.0, device) @ x123_centered_batch.T).T[:, 0:2]) )
-        if ~(torch.isnan(temp) | torch.isinf(temp)):
-            temp.backward()
-            loss_rot += temp.item()
-        temp = - torch.mean( g6.log_prob((mat(0.0, d.ty, 0.0, device) @ x123_centered_batch.T).T[:, 1:3]) )
-        if ~(torch.isnan(temp) | torch.isinf(temp)):
-            temp.backward()
-            loss_rot += temp.item()
-        temp = - torch.mean( g7.log_prob((mat(0.0, 0.0, d.tz, device) @ x123_centered_batch.T).T[:, [0, 2]]) )
-        if ~(torch.isnan(temp) | torch.isinf(temp)):
-            temp.backward()
-            loss_rot += temp.item()
-        temp = - torch.mean( f5.log_prob((mat(d.tx, 0.0, 0.0, device).T @ y123_centered_batch.T).T[:, 0:2]) )
-        if ~(torch.isnan(temp) | torch.isinf(temp)):
-            temp.backward()
-            loss_rot += temp.item()
-        temp = - torch.mean( f6.log_prob((mat(0.0, d.ty, 0.0, device).T @ y123_centered_batch.T).T[:, 1:3]) )
-        if ~(torch.isnan(temp) | torch.isinf(temp)):
-            temp.backward()
-            loss_rot += temp.item()
-        temp = - torch.mean( f7.log_prob((mat(0.0, 0.0, d.tz, device).T @ y123_centered_batch.T).T[:, [0, 2]]) )
-        if ~(torch.isnan(temp) | torch.isinf(temp)):
-            temp.backward()
-            loss_rot += temp.item()
+            # scale losses
+            temp = -torch.mean( g4.log_prob((d.r).exp() * x4_batch.unsqueeze(1)) )
+            if ~(torch.isnan(temp) | torch.isinf(temp)):
+                temp.backward()
+                loss_scale += temp.item()
+            temp = - torch.mean( f4.log_prob((-d.r).exp() * y4_batch.unsqueeze(1)) ) 
+            if ~(torch.isnan(temp) | torch.isinf(temp)):
+                temp.backward()
+                loss_scale += temp.item()
+                
+            # rotation losses
+            temp = - torch.mean( g5.log_prob((mat(d.tx, 0.0, 0.0, device) @ x123_centered_batch.T).T[:, 0:2]) )
+            if ~(torch.isnan(temp) | torch.isinf(temp)):
+                temp.backward()
+                loss_rot += temp.item()
+            temp = - torch.mean( g6.log_prob((mat(0.0, d.ty, 0.0, device) @ x123_centered_batch.T).T[:, 1:3]) )
+            if ~(torch.isnan(temp) | torch.isinf(temp)):
+                temp.backward()
+                loss_rot += temp.item()
+            temp = - torch.mean( g7.log_prob((mat(0.0, 0.0, d.tz, device) @ x123_centered_batch.T).T[:, [0, 2]]) )
+            if ~(torch.isnan(temp) | torch.isinf(temp)):
+                temp.backward()
+                loss_rot += temp.item()
+            temp = - torch.mean( f5.log_prob((mat(d.tx, 0.0, 0.0, device).T @ y123_centered_batch.T).T[:, 0:2]) )
+            if ~(torch.isnan(temp) | torch.isinf(temp)):
+                temp.backward()
+                loss_rot += temp.item()
+            temp = - torch.mean( f6.log_prob((mat(0.0, d.ty, 0.0, device).T @ y123_centered_batch.T).T[:, 1:3]) )
+            if ~(torch.isnan(temp) | torch.isinf(temp)):
+                temp.backward()
+                loss_rot += temp.item()
+            temp = - torch.mean( f7.log_prob((mat(0.0, 0.0, d.tz, device).T @ y123_centered_batch.T).T[:, [0, 2]]) )
+            if ~(torch.isnan(temp) | torch.isinf(temp)):
+                temp.backward()
+                loss_rot += temp.item()
+        else: # for big GPU, can do backprop all at once
+            temp1 = \
+                - torch.mean( g1.log_prob(x1_batch.unsqueeze(1) + d.x) ) \
+                - torch.mean( g2.log_prob(x2_batch.unsqueeze(1) + d.y) ) \
+                - torch.mean( g3.log_prob(x3_batch.unsqueeze(1) + d.z) ) \
+                - torch.mean( f1.log_prob(y1_batch.unsqueeze(1) - d.x) ) \
+                - torch.mean( f2.log_prob(y2_batch.unsqueeze(1) - d.y) ) \
+                - torch.mean( f3.log_prob(y3_batch.unsqueeze(1) - d.z) )
+        
+            temp2 = \
+                - torch.mean( g4.log_prob((d.r).exp() * x4_batch.unsqueeze(1)) ) \
+                - torch.mean( f4.log_prob((-d.r).exp() * y4_batch.unsqueeze(1)) )
+
+            temp3 = \
+                - torch.mean( g5.log_prob((mat(d.tx, 0.0, 0.0, device) @ x123_centered_batch.T).T[:, 0:2]) ) \
+                - torch.mean( g6.log_prob((mat(0.0, d.ty, 0.0, device) @ x123_centered_batch.T).T[:, 1:3]) ) \
+                - torch.mean( g7.log_prob((mat(0.0, 0.0, d.tz, device) @ x123_centered_batch.T).T[:, [0, 2]]) ) \
+                - torch.mean( f5.log_prob((mat(d.tx, 0.0, 0.0, device).T @ y123_centered_batch.T).T[:, 0:2]) ) \
+                - torch.mean( f6.log_prob((mat(0.0, d.ty, 0.0, device).T @ y123_centered_batch.T).T[:, 1:3]) ) \
+                - torch.mean( f7.log_prob((mat(0.0, 0.0, d.tz, device).T @ y123_centered_batch.T).T[:, [0, 2]]) )
+            
+            loss = temp1 + temp2 + temp3
+            if ~(torch.isnan(loss) | torch.isinf(loss)):
+                loss.backward()
+            # below only used for visualizing loss changes during training
+            loss_trans = temp1.item()
+            loss_scale = temp2.item()
+            loss_rot = temp3.item()
 
         optimizer1.step()
         optimizer2.step()

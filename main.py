@@ -186,8 +186,7 @@ def async_ours(X, Y, X_clean, applied):
     elapsed = perf_counter() - start
     pred = pred2 @ pred
     metrics = compute_metrics(X_clean, Y, pred, applied)
-    print(metrics)
-    visualize([(pred[:3, :3] @ X_clean.T).T + pred[:3, 3], Y], ['blue', 'red'], show=False, save=f"figs/Mours.png")
+    # visualize([(pred[:3, :3] @ X_clean.T).T + pred[:3, 3], Y], ['blue', 'red'], show=False, save=f"figs/Mours.png")
     return np.append(metrics, elapsed)
 
 if __name__ == "__main__":
@@ -195,7 +194,7 @@ if __name__ == "__main__":
     filenames = list(os.listdir("datasets/smol/"))
     filenames.sort()
 
-    for name in filenames[301:302]:
+    for name in filenames[0:10]:
         seed = int(name.split('_')[-1].split('.')[0]) # eg get 0681 from sofa_0681.ply
 
         Y = ply_to_np("datasets/smol/" + name)
@@ -203,36 +202,36 @@ if __name__ == "__main__":
         X_clean, _ = random_rigid(Y, seed=seed, noise_jitter_shuffle=False)
 
         # run ICP
-        # start = perf_counter()
-        # pred = run_others(X, Y, method=0)
-        # elapsed = perf_counter() - start
-        # metrics = np.append(compute_metrics(X_clean, Y, pred, applied), elapsed)
-        # M0_metrics[name] = metrics
-        # visualize([(pred[:3, :3] @ X_clean.T).T + pred[:3, 3], Y], ['blue', 'red'], show=False, save=f"figs/M0.png")
+        start = perf_counter()
+        pred = run_others(X, Y, method=0)
+        elapsed = perf_counter() - start
+        metrics = np.append(compute_metrics(X_clean, Y, pred, applied), elapsed)
+        M0_metrics[name] = metrics
+        visualize([(pred[:3, :3] @ X_clean.T).T + pred[:3, 3], Y], ['blue', 'red'], show=False, save=f"figs/M0.png")
         
         # run AAICP
-        # start = perf_counter()
-        # pred = run_others(X, Y, method=1)
-        # elapsed = perf_counter() - start
-        # metrics = np.append(compute_metrics(X_clean, Y, pred, applied), elapsed)
-        # M1_metrics[name] = metrics
-        # visualize([(pred[:3, :3] @ X_clean.T).T + pred[:3, 3], Y], ['blue', 'red'], show=False, save=f"figs/M1.png")
+        start = perf_counter()
+        pred = run_others(X, Y, method=1)
+        elapsed = perf_counter() - start
+        metrics = np.append(compute_metrics(X_clean, Y, pred, applied), elapsed)
+        M1_metrics[name] = metrics
+        visualize([(pred[:3, :3] @ X_clean.T).T + pred[:3, 3], Y], ['blue', 'red'], show=False, save=f"figs/M1.png")
 
         # run FRICP
-        # start = perf_counter()
-        # pred = run_others(X, Y, method=3)
-        # elapsed = perf_counter() - start
-        # metrics = np.append(compute_metrics(X_clean, Y, pred, applied), elapsed)
-        # M3_metrics[name] = metrics
-        # visualize([(pred[:3, :3] @ X_clean.T).T + pred[:3, 3], Y], ['blue', 'red'], show=False, save=f"figs/M3.png")
+        start = perf_counter()
+        pred = run_others(X, Y, method=3)
+        elapsed = perf_counter() - start
+        metrics = np.append(compute_metrics(X_clean, Y, pred, applied), elapsed)
+        M3_metrics[name] = metrics
+        visualize([(pred[:3, :3] @ X_clean.T).T + pred[:3, 3], Y], ['blue', 'red'], show=False, save=f"figs/M3.png")
 
         # run Sparse ICP
-        # start = perf_counter()
-        # pred = run_others(X, Y, method=6)
-        # elapsed = perf_counter() - start
-        # metrics = np.append(compute_metrics(X_clean, Y, pred, applied), elapsed)
-        # M6_metrics[name] = metrics
-        # visualize([(pred[:3, :3] @ X_clean.T).T + pred[:3, 3], Y], ['blue', 'red'], show=False, save=f"figs/M6.png")
+        start = perf_counter()
+        pred = run_others(X, Y, method=6)
+        elapsed = perf_counter() - start
+        metrics = np.append(compute_metrics(X_clean, Y, pred, applied), elapsed)
+        M6_metrics[name] = metrics
+        visualize([(pred[:3, :3] @ X_clean.T).T + pred[:3, 3], Y], ['blue', 'red'], show=False, save=f"figs/M6.png")
 
         # run SA-ICP and ours in parallel, then join
         with ThreadPoolExecutor(max_workers=2) as executor:
@@ -246,19 +245,19 @@ if __name__ == "__main__":
 
 
         # save the dictionaries using pickle
-        # with open('results/M0_metrics.pkl', 'wb') as f:
-        #     pickle.dump(M0_metrics, f)
-        # with open('results/M1_metrics.pkl', 'wb') as f:
-        #     pickle.dump(M1_metrics, f)
-        # with open('results/M3_metrics.pkl', 'wb') as f:
-        #     pickle.dump(M3_metrics, f)
-        # with open('results/M6_metrics.pkl', 'wb') as f:
-        #     pickle.dump(M6_metrics, f)
+        with open('results/M0_metrics.pkl', 'wb') as f:
+            pickle.dump(M0_metrics, f)
+        with open('results/M1_metrics.pkl', 'wb') as f:
+            pickle.dump(M1_metrics, f)
+        with open('results/M3_metrics.pkl', 'wb') as f:
+            pickle.dump(M3_metrics, f)
+        with open('results/M6_metrics.pkl', 'wb') as f:
+            pickle.dump(M6_metrics, f)
         # with open('results/M7_metrics.pkl', 'wb') as f:
         #     pickle.dump(M7_metrics, f)
-        # with open('results/Mours_metrics.pkl', 'wb') as f:
-        #     pickle.dump(Mours_metrics, f)
+        with open('results/Mours_metrics.pkl', 'wb') as f:
+            pickle.dump(Mours_metrics, f)
 
-        # print(name)
+        print(name)
 
         
