@@ -89,7 +89,7 @@ def run_others(X, Y, method):
             np_to_xyz(in1.name, X)
             np_to_xyz(in2.name, Y)
             # Usage: source.xyz target.xyz dest <method> <1-1> <nMaxIterations> <minDisplacement: optional -- default 0.001>
-            run(['./SAICP', in1.name, in2.name, out.name, "1", "1", "20"]) # method 1 for SA-ICP
+            run(['./SAICP', in1.name, in2.name, out.name, "1", "1", "100"]) # method 1 for SA-ICP
             pred_pcd = np.loadtxt(out.name)
             pred = get_rigid_between_pcd(X, pred_pcd) 
         return pred
@@ -201,12 +201,6 @@ if __name__ == "__main__":
         X, applied = random_rigid(Y, seed=seed)
         X_clean, _ = random_rigid(Y, seed=seed, noise_jitter_shuffle=False)
 
-        # run debug
-        # pred = run_others(X, Y, method=-1)
-        # metrics = compute_metrics(X_clean, Y, pred, applied)
-        # print(metrics)
-        # visualize([(pred[:3, :3] @ X_clean.T).T + pred[:3, 3], Y], ['blue', 'red'], show=False, save=f"figs/Mdebug.png")
-
         # run ICP
         start = perf_counter()
         pred = run_others(X, Y, method=0)
@@ -265,5 +259,5 @@ if __name__ == "__main__":
             pickle.dump(Mours_metrics, f)
 
         print(name)
-        if (name == "bathtub_0108.ply"):
-            break
+
+        

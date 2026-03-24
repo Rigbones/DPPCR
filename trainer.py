@@ -169,11 +169,12 @@ def DP_PCR(X, Y, device='cuda:0'):
     f6 = learn_pdf((X-X.mean(axis=0))[:, 1:3], model='KDE', device=device)
     f7 = learn_pdf((X-X.mean(axis=0))[:, [0, 2]], model='KDE', device=device)
 
-    return register(X, Y, f1, f2, f3, f4, f5, f6, f7, g1, g2, g3, g4, g5, g6, g7, epochs=500, batch_size=7000, device=device)
+    return register(X, Y, f1, f2, f3, f4, f5, f6, f7, g1, g2, g3, g4, g5, g6, g7, epochs=300, batch_size=8000, device=device)
 
 def register(X_og, Y_og, f1, f2, f3, f4, f5, f6, f7, g1, g2, g3, g4, g5, g6, g7, epochs=3000, batch_size=20_000, device="cuda:0"):
     """X and Y are shape (N, 3) and (M, 3)"""   
-    debug_interval = 50
+    debug_interval = 10
+    debug = False
 
     _og_pos = Y_og.mean(axis=0)     
     _og_scale = torch.linalg.norm(Y_og - _og_pos, axis=1).mean()
@@ -269,90 +270,88 @@ def register(X_og, Y_og, f1, f2, f3, f4, f5, f6, f7, g1, g2, g3, g4, g5, g6, g7,
             Y = (H.H.inverse()[:3, :3] @ Y_og.T).T + H.H.inverse()[:3, 3]
             d.zero_() # zero out differentials        
 
-            # if (epoch % debug_interval == 0) or (epoch == epochs - 1):
-            #     # set torch to only print 3 decimal places and no scientific notation
-            #     torch.set_printoptions(precision=3, sci_mode=False)
-            #     print('---------------------')
-            #     print(f'Epoch {epoch}, Loss: {loss.item():.3f} = {loss_trans.item():.3f} + {loss_scale.item():.3f} + {loss_rot.item():.3f}')
-            #     print(' | '.join(
-            #         [f"{name} {param.grad.item():.3f}" for (name, param) in zip(['dx', 'dy', 'dz', 'dr', 'dtx', 'dty', 'dtz'], [d.x, d.y, d.z, d.r, d.tx, d.ty, d.tz])]
-            #     ))
-            #     # print(' | '.join(
-            #     #     [f"{name} {param.grad.item():.3f}" for (name, param) in zip(['dx', 'dy', 'dz', 'dr', 'dtx'], [d.x, d.y, d.z, d.r, d.tx])]
-            #     # ))
-            #     print(f"current position: {X.mean(axis=0)}, current scale: {torch.linalg.norm(X-X.mean(axis=0), axis=1).mean():.3f}")
-            #     print(f"GT position     : {_og_pos}, GT      scale: {_og_scale:.3f}")
+            if debug and ((epoch % debug_interval == 0) or (epoch == epochs - 1)):
+                # set torch to only print 3 decimal places and no scientific notation
+                torch.set_printoptions(precision=3, sci_mode=False)
+                print('---------------------')
+                print(f'Epoch {epoch}, Loss: {loss.item():.3f} = {loss_trans.item():.3f} + {loss_scale.item():.3f} + {loss_rot.item():.3f}')
+                print(' | '.join(
+                    [f"{name} {param.grad.item():.3f}" for (name, param) in zip(['dx', 'dy', 'dz', 'dr', 'dtx', 'dty', 'dtz'], [d.x, d.y, d.z, d.r, d.tx, d.ty, d.tz])]
+                ))
+                # print(' | '.join(
+                #     [f"{name} {param.grad.item():.3f}" for (name, param) in zip(['dx', 'dy', 'dz', 'dr', 'dtx'], [d.x, d.y, d.z, d.r, d.tx])]
+                # ))
+                print(f"current position: {X.mean(axis=0)}, current scale: {torch.linalg.norm(X-X.mean(axis=0), axis=1).mean():.3f}")
+                print(f"GT position     : {_og_pos}, GT      scale: {_og_scale:.3f}")
                 
-            #     print(H.H)
-            #     print('---------------------')
+                print(H.H)
+                print('---------------------')
 
-            #     # save plots as 3 figures
-            #     fig, ((ax1, ax2, ax3, ax4), (ax5, ax6, ax7, _), (ax9, ax10, ax11, _)) = plt.subplots(3, 4, figsize=(24, 10), layout='tight')
+                # save plots as 3 figures
+                fig, ((ax1, ax2, ax3, ax4), (ax5, ax6, ax7, _), (ax9, ax10, ax11, _)) = plt.subplots(3, 4, figsize=(24, 10), layout='tight')
         
-            #     # x, y, z, r
-            #     _ = ax1.hist(X.detach().cpu().numpy()[:, 0], bins=100, alpha=0.5, density=True, label='pred')
-            #     _ = ax1.hist(Y_og.detach().cpu().numpy()[:, 0], bins=100, alpha=0.5, density=True, label='GT')
-            #     ax1.legend()
-            #     ax1.set_title("X axis")
+                # x, y, z, r
+                _ = ax1.hist(X.detach().cpu().numpy()[:, 0], bins=100, alpha=0.5, density=True, label='pred')
+                _ = ax1.hist(Y_og.detach().cpu().numpy()[:, 0], bins=100, alpha=0.5, density=True, label='GT')
+                ax1.legend()
+                ax1.set_title("X axis")
 
-            #     _ = ax2.hist(X.detach().cpu().numpy()[:, 1], bins=100, alpha=0.5, density=True, label='pred')
-            #     _ = ax2.hist(Y_og.detach().cpu().numpy()[:, 1], bins=100, alpha=0.5, density=True, label='GT')
-            #     ax2.legend()
-            #     ax2.set_title("Y axis")
+                _ = ax2.hist(X.detach().cpu().numpy()[:, 1], bins=100, alpha=0.5, density=True, label='pred')
+                _ = ax2.hist(Y_og.detach().cpu().numpy()[:, 1], bins=100, alpha=0.5, density=True, label='GT')
+                ax2.legend()
+                ax2.set_title("Y axis")
 
-            #     _ = ax3.hist(X.detach().cpu().numpy()[:, 2], bins=100, alpha=0.5, density=True, label='pred')
-            #     _ = ax3.hist(Y_og.detach().cpu().numpy()[:, 2], bins=100, alpha=0.5, density=True, label='GT')
-            #     ax3.legend()
-            #     ax3.set_title("Z axis")
+                _ = ax3.hist(X.detach().cpu().numpy()[:, 2], bins=100, alpha=0.5, density=True, label='pred')
+                _ = ax3.hist(Y_og.detach().cpu().numpy()[:, 2], bins=100, alpha=0.5, density=True, label='GT')
+                ax3.legend()
+                ax3.set_title("Z axis")
 
-            #     _ = ax4.hist((X-X.mean(axis=0)).norm(dim=1).detach().cpu().numpy(), bins=100, alpha=0.5, density=True, label='pred')
-            #     _ = ax4.hist((Y_og-Y_og.mean(axis=0)).norm(dim=1).detach().cpu().numpy(), bins=100, alpha=0.5, density=True, label='GT')
-            #     ax4.legend()
-            #     ax4.set_title("Norm")
+                _ = ax4.hist((X-X.mean(axis=0)).norm(dim=1).detach().cpu().numpy(), bins=100, alpha=0.5, density=True, label='pred')
+                _ = ax4.hist((Y_og-Y_og.mean(axis=0)).norm(dim=1).detach().cpu().numpy(), bins=100, alpha=0.5, density=True, label='GT')
+                ax4.legend()
+                ax4.set_title("Norm")
 
-            #     # xy, yz, zr
-            #     _ = ax5.hist2d((X-X.mean(axis=0))[:, 0].detach().cpu().numpy(), (X-X.mean(axis=0))[:, 1].detach().cpu().numpy(), bins=100)
-            #     _ = ax9.hist2d((Y_og-Y_og.mean(axis=0))[:, 0].detach().cpu().numpy(), (Y_og-Y_og.mean(axis=0))[:, 1].detach().cpu().numpy(), bins=100)
-            #     ax5.set_title("XY Projection (pred)")
-            #     ax9.set_title("XY Projection ( GT )")
+                # xy, yz, zr
+                _ = ax5.hist2d((X-X.mean(axis=0))[:, 0].detach().cpu().numpy(), (X-X.mean(axis=0))[:, 1].detach().cpu().numpy(), bins=100)
+                _ = ax9.hist2d((Y_og-Y_og.mean(axis=0))[:, 0].detach().cpu().numpy(), (Y_og-Y_og.mean(axis=0))[:, 1].detach().cpu().numpy(), bins=100)
+                ax5.set_title("XY Projection (pred)")
+                ax9.set_title("XY Projection ( GT )")
 
-            #     _ = ax6.hist2d((X-X.mean(axis=0))[:, 1].detach().cpu().numpy(), (X-X.mean(axis=0))[:, 2].detach().cpu().numpy(), bins=100)
-            #     _ = ax10.hist2d((Y_og-Y_og.mean(axis=0))[:, 1].detach().cpu().numpy(), (Y_og-Y_og.mean(axis=0))[:, 2].detach().cpu().numpy(), bins=100)
-            #     ax6.set_title("YZ Projection (pred)")
-            #     ax10.set_title("YZ Projection ( GT )")
+                _ = ax6.hist2d((X-X.mean(axis=0))[:, 1].detach().cpu().numpy(), (X-X.mean(axis=0))[:, 2].detach().cpu().numpy(), bins=100)
+                _ = ax10.hist2d((Y_og-Y_og.mean(axis=0))[:, 1].detach().cpu().numpy(), (Y_og-Y_og.mean(axis=0))[:, 2].detach().cpu().numpy(), bins=100)
+                ax6.set_title("YZ Projection (pred)")
+                ax10.set_title("YZ Projection ( GT )")
 
-            #     _ = ax7.hist2d((X-X.mean(axis=0))[:, 0].detach().cpu().numpy(), (X-X.mean(axis=0))[:, 2].detach().cpu().numpy(), bins=100)
-            #     _ = ax11.hist2d((Y_og-Y_og.mean(axis=0))[:, 0].detach().cpu().numpy(), (Y_og-Y_og.mean(axis=0))[:, 2].detach().cpu().numpy(), bins=100)
-            #     ax7.set_title("XZ Projection (pred)")
-            #     ax11.set_title("XZ Projection ( GT )")
+                _ = ax7.hist2d((X-X.mean(axis=0))[:, 0].detach().cpu().numpy(), (X-X.mean(axis=0))[:, 2].detach().cpu().numpy(), bins=100)
+                _ = ax11.hist2d((Y_og-Y_og.mean(axis=0))[:, 0].detach().cpu().numpy(), (Y_og-Y_og.mean(axis=0))[:, 2].detach().cpu().numpy(), bins=100)
+                ax7.set_title("XZ Projection (pred)")
+                ax11.set_title("XZ Projection ( GT )")
 
-            #     fig.savefig(f"figs/E{epoch}.png")
-            #     plt.close('all')
-
-                # if (input() == 'q'):
-                #     exit(0)    
+                fig.savefig(f"figs/E{epoch}.png")
+                plt.close('all')
 
         # Update loss on progress bar
         progress_bar.set_postfix({'Loss': f"{loss.item():.2f}"})
 
-    # with torch.no_grad():
-    #     # plot original pcd
-    #     visualize(
-    #         [X_og.detach().cpu().numpy(), Y_og.detach().cpu().numpy()],
-    #         ['blue', 'red'],
-    #         show = False,
-    #         save = f"figs/E{epochs}_original.png",
-    #         marker_size = 0.7
-    #     )
+    if debug:
+        with torch.no_grad():
+            # plot original pcd
+            visualize(
+                [X_og.detach().cpu().numpy(), Y_og.detach().cpu().numpy()],
+                ['blue', 'red'],
+                show = False,
+                save = f"figs/E{epochs}_original.png",
+                marker_size = 0.7
+            )
 
-    #     # plot registered result
-    #     visualize(
-    #         [((H.H[:3, :3] @ X_og.T).T + H.H[:3, 3]).detach().cpu().numpy(), Y_og.detach().cpu().numpy()],
-    #         ['blue', 'red'],
-    #         show = False,
-    #         save = f"figs/E{epochs}_result.png",
-    #         marker_size = 0.7
-    #     )
+            # plot registered result
+            visualize(
+                [((H.H[:3, :3] @ X_og.T).T + H.H[:3, 3]).detach().cpu().numpy(), Y_og.detach().cpu().numpy()],
+                ['blue', 'red'],
+                show = False,
+                save = f"figs/E{epochs}_result.png",
+                marker_size = 0.7
+            )
 
     return H.H.cpu().numpy()
 
