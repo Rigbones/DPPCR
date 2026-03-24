@@ -172,7 +172,9 @@ def DP_PCR(X, Y, device='cuda:0'):
     return register(X, Y, f1, f2, f3, f4, f5, f6, f7, g1, g2, g3, g4, g5, g6, g7, epochs=300, batch_size=8_000, device=device)
 
 def register(X_og, Y_og, f1, f2, f3, f4, f5, f6, f7, g1, g2, g3, g4, g5, g6, g7, epochs=3000, batch_size=20_000, big_gpu=False, device="cuda:0"):
-    """X and Y are shape (N, 3) and (M, 3)"""   
+    """
+    X and Y are shape (N, 3) and (M, 3)
+    """   
     debug_interval = 20
     debug = False
 
