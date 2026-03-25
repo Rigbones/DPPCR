@@ -14,7 +14,7 @@ from metrics import compute_metrics
 from utils import shuffle, add_noise, jitter, axis_angle_to_matrix
 from visualize import visualize
 
-def random_rigid(X, seed, noise_jitter_shuffle=True):
+def random_rigid(X, seed, noise_jitter_shuffle_downsample=True):
     """
     Applies a random rigid transformation to a point cloud X, along with noise and jitter.
     Args:
@@ -34,8 +34,8 @@ def random_rigid(X, seed, noise_jitter_shuffle=True):
 
     # apply transformations, noise, jitter to X
     X = (np.linalg.inv(R1 @ R2 @ R3) @ ((1 / S) * (X - T)).T).T
-    if (noise_jitter_shuffle):
-        X = shuffle(add_noise(jitter(X, seed=seed), seed=seed), seed=seed)
+    if (noise_jitter_shuffle_downsample):
+        X = shuffle(add_noise(jitter(X, seed=seed), seed=seed), seed=seed)[::2]
 
     # save applied transformation to calculate DP-PCR's accuracy
     applied =  np.eye(4)
@@ -199,7 +199,10 @@ if __name__ == "__main__":
 
         Y = ply_to_np("datasets/smol/" + name)
         X, applied = random_rigid(Y, seed=seed)
-        X_clean, _ = random_rigid(Y, seed=seed, noise_jitter_shuffle=False)
+        X_clean, _ = random_rigid(Y, seed=seed, noise_jitter_shuffle_downsample=False)
+
+        print("--------------")
+        print(f"{name} started")
 
         # run ICP
         start = perf_counter()
@@ -207,7 +210,7 @@ if __name__ == "__main__":
         elapsed = perf_counter() - start
         metrics = np.append(compute_metrics(X_clean, Y, pred, applied), elapsed)
         M0_metrics[name] = metrics
-        visualize([(pred[:3, :3] @ X_clean.T).T + pred[:3, 3], Y], ['blue', 'red'], show=False, save=f"figs/M0.png")
+        # visualize([(pred[:3, :3] @ X_clean.T).T + pred[:3, 3], Y], ['blue', 'red'], show=False, save=f"figs/M0.png")
         
         # run AAICP
         start = perf_counter()
@@ -215,7 +218,7 @@ if __name__ == "__main__":
         elapsed = perf_counter() - start
         metrics = np.append(compute_metrics(X_clean, Y, pred, applied), elapsed)
         M1_metrics[name] = metrics
-        visualize([(pred[:3, :3] @ X_clean.T).T + pred[:3, 3], Y], ['blue', 'red'], show=False, save=f"figs/M1.png")
+        # visualize([(pred[:3, :3] @ X_clean.T).T + pred[:3, 3], Y], ['blue', 'red'], show=False, save=f"figs/M1.png")
 
         # run FRICP
         start = perf_counter()
@@ -223,7 +226,7 @@ if __name__ == "__main__":
         elapsed = perf_counter() - start
         metrics = np.append(compute_metrics(X_clean, Y, pred, applied), elapsed)
         M3_metrics[name] = metrics
-        visualize([(pred[:3, :3] @ X_clean.T).T + pred[:3, 3], Y], ['blue', 'red'], show=False, save=f"figs/M3.png")
+        # visualize([(pred[:3, :3] @ X_clean.T).T + pred[:3, 3], Y], ['blue', 'red'], show=False, save=f"figs/M3.png")
 
         # run Sparse ICP
         start = perf_counter()
@@ -231,7 +234,7 @@ if __name__ == "__main__":
         elapsed = perf_counter() - start
         metrics = np.append(compute_metrics(X_clean, Y, pred, applied), elapsed)
         M6_metrics[name] = metrics
-        visualize([(pred[:3, :3] @ X_clean.T).T + pred[:3, 3], Y], ['blue', 'red'], show=False, save=f"figs/M6.png")
+        # visualize([(pred[:3, :3] @ X_clean.T).T + pred[:3, 3], Y], ['blue', 'red'], show=False, save=f"figs/M6.png")
 
         # run SA-ICP and ours in parallel, then join
         with ThreadPoolExecutor(max_workers=2) as executor:
@@ -257,7 +260,5 @@ if __name__ == "__main__":
         #     pickle.dump(M7_metrics, f)
         with open('results/Mours_metrics.pkl', 'wb') as f:
             pickle.dump(Mours_metrics, f)
-
-        print(name)
 
         
