@@ -3,6 +3,7 @@
 /.vscode/
 /figs/
 /results/
+/old_results/
 *.png
 *.ipynb
 *.txt
