@@ -249,7 +249,7 @@ if __name__ == "__main__":
         
         if (10 in args.methods): # run ours
             start = perf_counter()
-            pred = DP_PCR(X, Y, f'cuda:{args.portion}')
+            pred = DP_PCR(X, Y, device=f'cuda:{args.portion}')
             pred2 = run_others((pred[:3, :3] @ X.T).T + pred[:3, 3], Y, method=8)
             elapsed = perf_counter() - start
             pred = pred2 @ pred
