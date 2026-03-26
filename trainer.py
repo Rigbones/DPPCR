@@ -149,7 +149,7 @@ def mat(dtx, dty, dtz, device='cuda:0'):
 
     return Rtz @ Rty @ Rtx
 
-def DP_PCR(X, Y, device='cuda:0'):
+def DP_PCR(X, Y, faster=True, device='cuda:0'):
     X = torch.from_numpy(X).to(dtype=torch.float32, device=device)
     Y = torch.from_numpy(Y).to(dtype=torch.float32, device=device)
 
@@ -169,11 +169,12 @@ def DP_PCR(X, Y, device='cuda:0'):
     f6 = learn_pdf((X-X.mean(axis=0))[:, 1:3], model='KDE', device=device)
     f7 = learn_pdf((X-X.mean(axis=0))[:, [0, 2]], model='KDE', device=device)
 
-    return register(X, Y, f1, f2, f3, f4, f5, f6, f7, g1, g2, g3, g4, g5, g6, g7, epochs=300, batch_size=8_000, device=device)
+    return register(X, Y, f1, f2, f3, f4, f5, f6, f7, g1, g2, g3, g4, g5, g6, g7, epochs=300, batch_size=8_000, faster=faster, device=device)
 
-def register(X_og, Y_og, f1, f2, f3, f4, f5, f6, f7, g1, g2, g3, g4, g5, g6, g7, epochs=3000, batch_size=20_000, big_gpu=False, device="cuda:0"):
+def register(X_og, Y_og, f1, f2, f3, f4, f5, f6, f7, g1, g2, g3, g4, g5, g6, g7, epochs=3000, batch_size=20_000, faster=True, device="cuda:0"):
     """
     X and Y are shape (N, 3) and (M, 3)
+    faster: True for faster running and more memory usage.  False for slower running and less memory usage
     """   
     debug_interval = 20
     debug = False
@@ -234,7 +235,7 @@ def register(X_og, Y_og, f1, f2, f3, f4, f5, f6, f7, g1, g2, g3, g4, g5, g6, g7,
         loss_rot = 0.0
         loss_scale = 0.0
 
-        if (not big_gpu): # longer running time but much less GPU memory usage
+        if (not faster): # longer running time but much less GPU memory usage
             # does backprop for each loss component separately to greatly reduce GPU ram usage
             # trans losses
             temp = -torch.mean( g1.log_prob(x1_batch.unsqueeze(1) + d.x) )
