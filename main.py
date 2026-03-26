@@ -173,6 +173,12 @@ M6_metrics = {}
 M7_metrics = {}
 Mours_metrics = {}
 
+import time
+# sleep for 7.8 hours and use tqdm to show progress bar for testing
+from tqdm import tqdm
+for i in tqdm(range(7.8 * 3600)):
+    time.sleep(1)
+
 if __name__ == "__main__":
     # use argparse to optionally specify which half of the dataset to run on (first_half or second_half)
     parser = argparse.ArgumentParser(description='Test DPPCR vs other methods')
@@ -184,6 +190,8 @@ if __name__ == "__main__":
                         required=True, type=int, nargs='+', choices=[0, 1, 3, 6, 7, 10], help='Which methods to run. 0: ICP, 1: AAICP, 3: FRICP, 6: Sparse ICP, 7: SA-ICP, 10: Ours')
     parser.add_argument('--visualize', 
                         required=False, type=int, choices=[0, 1], default=0, help='Whether to save visualizations to figs folder')
+    parser.add_argument('--device',
+                        required=False, type=int, choices=[0, 1], help='Which GPU to run on')
     args = parser.parse_args()
 
     # loop through datasets/smol/, apply random rigid transformation, run different methods and compute metrics
@@ -249,7 +257,7 @@ if __name__ == "__main__":
         
         if (10 in args.methods): # run ours
             start = perf_counter()
-            pred = DP_PCR(X, Y, device=f'cuda:{args.portion}')
+            pred = DP_PCR(X, Y, device=f'cuda:{args.portion}' if args.device is None else f'cuda:{args.device}')
             pred2 = run_others((pred[:3, :3] @ X.T).T + pred[:3, 3], Y, method=8)
             elapsed = perf_counter() - start
             pred = pred2 @ pred

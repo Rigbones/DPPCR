@@ -11,9 +11,6 @@ import matplotlib.pyplot as plt
 from flow_models import RealNVP_Flow, Lipschitz_Flow, KDE_Estimator
 from visualize import visualize
 
-def print_memory_used():
-    print(f"{torch.cuda.device_memory_used(0) / 1024 / 1024 / 1024:.2f} GB")
-
 def learn_pdf(x, epochs=3000, batch_size=150_000, model='RealNVP', save=None, device='cuda:0'):
     """
     Args:
