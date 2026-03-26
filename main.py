@@ -3,9 +3,9 @@ import numpy as np
 from subprocess import run, DEVNULL
 from tempfile import NamedTemporaryFile
 import os
-from concurrent.futures import ThreadPoolExecutor
 import pickle
 from time import perf_counter
+import argparse
 
 # my functions
 from format_conversions import ply_to_np, np_to_ply, np_to_xyz
@@ -52,7 +52,7 @@ def run_others(X, Y, method):
         1: AAICP
         3: FRICP
         6: Sparse ICP
-        7: SA-ICP (not implemented yet)
+        7: SA-ICP
         8: No Bounding Box ICP
     """
     def X_to_Y_scale_factor(X, Y):
@@ -89,7 +89,7 @@ def run_others(X, Y, method):
             np_to_xyz(in1.name, X)
             np_to_xyz(in2.name, Y)
             # Usage: source.xyz target.xyz dest <method> <1-1> <nMaxIterations> <minDisplacement: optional -- default 0.001>
-            run(['./SAICP', in1.name, in2.name, out.name, "1", "1", "50"]) # method 1 for SA-ICP
+            run(['./SAICP', in1.name, in2.name, out.name, "1", "1", "50"], stdout=DEVNULL) # method 1 for SA-ICP
             pred_pcd = np.loadtxt(out.name)
             pred = get_rigid_between_pcd(X, pred_pcd) 
         return pred
@@ -174,83 +174,110 @@ M7_metrics = {}
 Mours_metrics = {}
 
 if __name__ == "__main__":
+    # use argparse to optionally specify which half of the dataset to run on (first_half or second_half)
+    parser = argparse.ArgumentParser(description='Test DPPCR vs other methods')
+    parser.add_argument('--clean', 
+                        required=True, type=int, choices=[0, 1], help='0 for noise + jitter + shuffle + downsample augmentation, 1 for clean data')
+    parser.add_argument('--portion', 
+                        required=True, type=int, choices=[0, 1], help='0 to run on first half, 1 to run on second half')
+    parser.add_argument('--methods', 
+                        required=True, type=int, nargs='+', choices=[0, 1, 3, 6, 7, 10], help='Which methods to run. 0: ICP, 1: AAICP, 3: FRICP, 6: Sparse ICP, 7: SA-ICP, 10: Ours')
+    parser.add_argument('--visualize', 
+                        required=False, type=int, choices=[0, 1], default=0, help='Whether to save visualizations to figs folder')
+    args = parser.parse_args()
+
     # loop through datasets/smol/, apply random rigid transformation, run different methods and compute metrics
     filenames = list(os.listdir("datasets/smol/"))
     filenames.sort()
+    filenames = filenames[:450] if args.portion == 0 else filenames[450:]
 
-    for name in filenames[450:]:
+    for name in filenames:
         seed = int(name.split('_')[-1].split('.')[0]) # eg get 0681 from sofa_0681.ply
 
         Y = ply_to_np("datasets/smol/" + name)
-        X, applied = random_rigid(Y, seed=seed)
+        X, applied = random_rigid(Y, seed=seed, noise_jitter_shuffle_downsample=args.clean == 0)
         X_clean, _ = random_rigid(Y, seed=seed, noise_jitter_shuffle_downsample=False)
 
         print("--------------")
-        print(f"{name} started")
+        print(f"[{filenames.index(name) + 1}/{len(filenames)}] Running '{name}', part of portion {args.portion}, methods {args.methods} with {'clean data' if args.clean == 1 else 'augmented data'}")
 
-        # run ICP
-        start = perf_counter()
-        pred = run_others(X, Y, method=0)
-        elapsed = perf_counter() - start
-        metrics = np.append(compute_metrics(X_clean, Y, pred, applied), elapsed)
-        M0_metrics[name] = metrics
-        # visualize([(pred[:3, :3] @ X_clean.T).T + pred[:3, 3], Y], ['blue', 'red'], show=False, save=f"figs/M0.png")
+        if (0 in args.methods): # run ICP
+            start = perf_counter()
+            pred = run_others(X, Y, method=0)
+            elapsed = perf_counter() - start
+            metrics = np.append(compute_metrics(X_clean, Y, pred, applied), elapsed)
+            M0_metrics[name] = metrics
+            if (args.visualize == 1):
+                visualize([(pred[:3, :3] @ X_clean.T).T + pred[:3, 3], Y], ['blue', 'red'], show=False, save=f"figs/M0.png")
+
+        if (1 in args.methods): # run AAICP
+            start = perf_counter()
+            pred = run_others(X, Y, method=1)
+            elapsed = perf_counter() - start
+            metrics = np.append(compute_metrics(X_clean, Y, pred, applied), elapsed)
+            M1_metrics[name] = metrics
+            if (args.visualize == 1):
+                visualize([(pred[:3, :3] @ X_clean.T).T + pred[:3, 3], Y], ['blue', 'red'], show=False, save=f"figs/M1.png")
+
+        if (3 in args.methods): # run FRICP
+            start = perf_counter()
+            pred = run_others(X, Y, method=3)
+            elapsed = perf_counter() - start
+            metrics = np.append(compute_metrics(X_clean, Y, pred, applied), elapsed)
+            M3_metrics[name] = metrics
+            if (args.visualize == 1):
+                visualize([(pred[:3, :3] @ X_clean.T).T + pred[:3, 3], Y], ['blue', 'red'], show=False, save=f"figs/M3.png")
+
+        if (6 in args.methods): # run Sparse ICP
+            start = perf_counter()
+            pred = run_others(X, Y, method=6)
+            elapsed = perf_counter() - start
+            metrics = np.append(compute_metrics(X_clean, Y, pred, applied), elapsed)
+            M6_metrics[name] = metrics
+            if (args.visualize == 1):
+                visualize([(pred[:3, :3] @ X_clean.T).T + pred[:3, 3], Y], ['blue', 'red'], show=False, save=f"figs/M6.png")
+
+        if (7 in args.methods): # run SA-ICP
+            start = perf_counter()
+            pred = run_others(X, Y, method=7)
+            elapsed = perf_counter() - start
+            metrics = compute_metrics(X_clean, Y, pred, applied)
+            M7_metrics[name] = np.append(metrics, elapsed)
+            if (args.visualize == 1):
+                visualize([(pred[:3, :3] @ X_clean.T).T + pred[:3, 3], Y], ['blue', 'red'], show=False, save=f"figs/M7.png")
+
         
-        # run AAICP
-        start = perf_counter()
-        pred = run_others(X, Y, method=1)
-        elapsed = perf_counter() - start
-        metrics = np.append(compute_metrics(X_clean, Y, pred, applied), elapsed)
-        M1_metrics[name] = metrics
-        # visualize([(pred[:3, :3] @ X_clean.T).T + pred[:3, 3], Y], ['blue', 'red'], show=False, save=f"figs/M1.png")
-
-        # run FRICP
-        start = perf_counter()
-        pred = run_others(X, Y, method=3)
-        elapsed = perf_counter() - start
-        metrics = np.append(compute_metrics(X_clean, Y, pred, applied), elapsed)
-        M3_metrics[name] = metrics
-        # visualize([(pred[:3, :3] @ X_clean.T).T + pred[:3, 3], Y], ['blue', 'red'], show=False, save=f"figs/M3.png")
-
-        # run Sparse ICP
-        start = perf_counter()
-        pred = run_others(X, Y, method=6)
-        elapsed = perf_counter() - start
-        metrics = np.append(compute_metrics(X_clean, Y, pred, applied), elapsed)
-        M6_metrics[name] = metrics
-        # visualize([(pred[:3, :3] @ X_clean.T).T + pred[:3, 3], Y], ['blue', 'red'], show=False, save=f"figs/M6.png")
-
-        # run SA-ICP
-        # start = perf_counter()
-        # pred = run_others(X, Y, method=7)
-        # elapsed = perf_counter() - start
-        # metrics = compute_metrics(X_clean, Y, pred, applied)
-        # M7_metrics[name] = np.append(metrics, elapsed)
-        # visualize([(pred[:3, :3] @ X_clean.T).T + pred[:3, 3], Y], ['blue', 'red'], show=False, save=f"figs/M7.png")
-
-        # run ours
-        start = perf_counter()
-        pred = DP_PCR(X, Y, 'cuda:1')
-        pred2 = run_others((pred[:3, :3] @ X.T).T + pred[:3, 3], Y, method=8)
-        elapsed = perf_counter() - start
-        pred = pred2 @ pred
-        metrics = compute_metrics(X_clean, Y, pred, applied)
-        Mours_metrics[name] = np.append(metrics, elapsed)
-        # visualize([(pred[:3, :3] @ X_clean.T).T + pred[:3, 3], Y], ['blue', 'red'], show=False, save=f"figs/Mours.png")
+        if (10 in args.methods): # run ours
+            start = perf_counter()
+            pred = DP_PCR(X, Y, f'cuda:{args.portion}')
+            pred2 = run_others((pred[:3, :3] @ X.T).T + pred[:3, 3], Y, method=8)
+            elapsed = perf_counter() - start
+            pred = pred2 @ pred
+            metrics = compute_metrics(X_clean, Y, pred, applied)
+            Mours_metrics[name] = np.append(metrics, elapsed)
+            if (args.visualize == 1):
+                visualize([(pred[:3, :3] @ X_clean.T).T + pred[:3, 3], Y], ['blue', 'red'], show=False, save=f"figs/Mours.png")
 
 
         # save the dictionaries using pickle
-        with open('results/M0_metrics_second_half.pkl', 'wb') as f:
-            pickle.dump(M0_metrics, f)
-        with open('results/M1_metrics_second_half.pkl', 'wb') as f:
-            pickle.dump(M1_metrics, f)
-        with open('results/M3_metrics_second_half.pkl', 'wb') as f:
-            pickle.dump(M3_metrics, f)
-        with open('results/M6_metrics_second_half.pkl', 'wb') as f:
-            pickle.dump(M6_metrics, f)
-        # with open('results/M7_metrics_second_half.pkl', 'wb') as f:
-        #     pickle.dump(M7_metrics, f)
-        with open('results/Mours_metrics_second_half.pkl', 'wb') as f:
-            pickle.dump(Mours_metrics, f)
+        pkl_name = "first" if args.portion == 0 else "second"
+        if (0 in args.methods):
+            with open(f'results/M0_{pkl_name}.pkl', 'wb') as f:
+                pickle.dump(M0_metrics, f)
+        if (1 in args.methods):
+            with open(f'results/M1_{pkl_name}.pkl', 'wb') as f:
+                pickle.dump(M1_metrics, f)
+        if (3 in args.methods):
+            with open(f'results/M3_{pkl_name}.pkl', 'wb') as f:
+                pickle.dump(M3_metrics, f)
+        if (6 in args.methods):
+            with open(f'results/M6_{pkl_name}.pkl', 'wb') as f:
+                pickle.dump(M6_metrics, f)
+        if (7 in args.methods):
+            with open(f'results/M7_{pkl_name}.pkl', 'wb') as f:
+                pickle.dump(M7_metrics, f)
+        if (10 in args.methods):
+            with open(f'results/Mours_{pkl_name}.pkl', 'wb') as f:
+                pickle.dump(Mours_metrics, f)
 
         
