@@ -194,7 +194,7 @@ if __name__ == "__main__":
     filenames = list(os.listdir("datasets/smol/"))
     filenames.sort()
 
-    for name in filenames[0:10]:
+    for name in filenames:
         seed = int(name.split('_')[-1].split('.')[0]) # eg get 0681 from sofa_0681.ply
 
         Y = ply_to_np("datasets/smol/" + name)
