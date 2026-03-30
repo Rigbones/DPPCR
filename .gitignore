@@ -4,6 +4,7 @@
 /figs/
 /results/
 /old_results/
+temp.py
 *.png
 *.ipynb
 *.txt
