@@ -74,5 +74,5 @@ def visualize(xyz, rgb=None, marker_size=0.5, axes=False, show=True, save=None, 
         fig.show()
 
     if (save is not None):
-        fig.write_image(save)
+        fig.write_image(save, scale=2.0)
         print(f"Saved to {save}")

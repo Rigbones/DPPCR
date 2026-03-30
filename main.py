@@ -173,12 +173,6 @@ M6_metrics = {}
 M7_metrics = {}
 Mours_metrics = {}
 
-import time
-# sleep for 7.8 hours and use tqdm to show progress bar for testing
-from tqdm import tqdm
-for i in tqdm(range(7.8 * 3600)):
-    time.sleep(1)
-
 if __name__ == "__main__":
     # use argparse to optionally specify which half of the dataset to run on (first_half or second_half)
     parser = argparse.ArgumentParser(description='Test DPPCR vs other methods')
@@ -193,7 +187,7 @@ if __name__ == "__main__":
     parser.add_argument('--device',
                         required=False, type=int, choices=[0, 1], help='Which GPU to run on')
     args = parser.parse_args()
-
+    
     # loop through datasets/smol/, apply random rigid transformation, run different methods and compute metrics
     filenames = list(os.listdir("datasets/smol/"))
     filenames.sort()
@@ -249,8 +243,8 @@ if __name__ == "__main__":
             start = perf_counter()
             pred = run_others(X, Y, method=7)
             elapsed = perf_counter() - start
-            metrics = compute_metrics(X_clean, Y, pred, applied)
-            M7_metrics[name] = np.append(metrics, elapsed)
+            metrics = np.append(compute_metrics(X_clean, Y, pred, applied), elapsed)
+            M7_metrics[name] = metrics
             if (args.visualize == 1):
                 visualize([(pred[:3, :3] @ X_clean.T).T + pred[:3, 3], Y], ['blue', 'red'], show=False, save=f"figs/M7.png")
 
