@@ -171,6 +171,7 @@ M1_metrics = {}
 M3_metrics = {}
 M6_metrics = {}
 M7_metrics = {}
+Moursraw_metrics = {}
 Mours_metrics = {}
 
 if __name__ == "__main__":
@@ -181,12 +182,17 @@ if __name__ == "__main__":
     parser.add_argument('--portion', 
                         required=True, type=int, choices=[0, 1], help='0 to run on first half, 1 to run on second half')
     parser.add_argument('--methods', 
-                        required=True, type=int, nargs='+', choices=[0, 1, 3, 6, 7, 10], help='Which methods to run. 0: ICP, 1: AAICP, 3: FRICP, 6: Sparse ICP, 7: SA-ICP, 10: Ours')
+                        required=True, type=int, nargs='+', choices=[0, 1, 3, 6, 7, 9, 10], help='Which methods to run. 0: ICP, 1: AAICP, 3: FRICP, 6: Sparse ICP, 7: SA-ICP, 9: Ours, 10: Ours+ICP')
     parser.add_argument('--visualize', 
                         required=False, type=int, choices=[0, 1], default=0, help='Whether to save visualizations to figs folder')
     parser.add_argument('--device',
                         required=False, type=int, choices=[0, 1], help='Which GPU to run on')
     args = parser.parse_args()
+
+    # if no args are provided, print help
+    if len(os.sys.argv) == 1:
+        parser.print_help()
+        os.sys.exit(1)
     
     # loop through datasets/smol/, apply random rigid transformation, run different methods and compute metrics
     filenames = list(os.listdir("datasets/smol/"))
@@ -249,6 +255,15 @@ if __name__ == "__main__":
                 visualize([(pred[:3, :3] @ X_clean.T).T + pred[:3, 3], Y], ['blue', 'red'], show=False, save=f"figs/M7.png")
 
         
+        if (9 in args.methods): # run ours without final ICP
+            start = perf_counter()
+            pred = DP_PCR(X, Y, device=f'cuda:{args.portion}' if args.device is None else f'cuda:{args.device}')
+            elapsed = perf_counter() - start
+            metrics = compute_metrics(X_clean, Y, pred, applied)
+            Moursraw_metrics[name] = np.append(metrics, elapsed)
+            if (args.visualize == 1):
+                visualize([(pred[:3, :3] @ X_clean.T).T + pred[:3, 3], Y], ['blue', 'red'], show=False, save=f"figs/Moursraw.png")
+
         if (10 in args.methods): # run ours
             start = perf_counter()
             pred = DP_PCR(X, Y, device=f'cuda:{args.portion}' if args.device is None else f'cuda:{args.device}')
@@ -259,7 +274,6 @@ if __name__ == "__main__":
             Mours_metrics[name] = np.append(metrics, elapsed)
             if (args.visualize == 1):
                 visualize([(pred[:3, :3] @ X_clean.T).T + pred[:3, 3], Y], ['blue', 'red'], show=False, save=f"figs/Mours.png")
-
 
         # save the dictionaries using pickle
         pkl_name = "first" if args.portion == 0 else "second"
@@ -278,6 +292,9 @@ if __name__ == "__main__":
         if (7 in args.methods):
             with open(f'results/M7_{pkl_name}.pkl', 'wb') as f:
                 pickle.dump(M7_metrics, f)
+        if (9 in args.methods):
+            with open(f'results/Moursraw_{pkl_name}.pkl', 'wb') as f:
+                pickle.dump(Moursraw_metrics, f)
         if (10 in args.methods):
             with open(f'results/Mours_{pkl_name}.pkl', 'wb') as f:
                 pickle.dump(Mours_metrics, f)
