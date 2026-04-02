@@ -193,7 +193,13 @@ if __name__ == "__main__":
     if len(os.sys.argv) == 1:
         parser.print_help()
         os.sys.exit(1)
-    
+
+    from time import sleep
+    from tqdm import tqdm
+    # sleep for 6 hours, use tqdm to show progress
+    for _ in tqdm(range(60 * 60 * 6), desc="Sleeping"):
+        sleep(1)
+
     # loop through datasets/smol/, apply random rigid transformation, run different methods and compute metrics
     filenames = list(os.listdir("datasets/smol/"))
     filenames.sort()
