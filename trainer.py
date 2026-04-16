@@ -209,7 +209,7 @@ def register(X_og, Y_og, f, g, epochs=3000, batch_size=20_000, faster=True, devi
                 loss += temp.item()
             
             temp = -torch.mean( f.log_prob(
-                    (torch.linalg.inv(bigD) @ (y_batch - _T).T).T
+                    (torch.linalg.inv(bigD) @ (y_batch).T).T - _T
             ))
             if ~(torch.isnan(temp) | torch.isinf(temp)):
                 temp.backward()
@@ -219,7 +219,7 @@ def register(X_og, Y_og, f, g, epochs=3000, batch_size=20_000, faster=True, devi
             temp = \
                 - torch.mean( g.log_prob((bigD @ (x_batch + _T).T).T) ) \
                 - torch.mean( f.log_prob(
-                    (torch.linalg.inv(bigD) @ (y_batch - _T).T).T
+                    (torch.linalg.inv(bigD) @ (y_batch).T).T - _T
                 ))
             
             if ~(torch.isnan(temp) | torch.isinf(temp)):
