@@ -151,10 +151,9 @@ def DP_PCR(X, Y, faster=True, device='cuda:0'):
     Y = torch.from_numpy(Y).to(dtype=torch.float32, device=device)
 
     g = learn_pdf(Y, model='KDE', device=device)
-
     f = learn_pdf(X, model='KDE', device=device)
 
-    return register(X, Y, f, g, epochs=300, batch_size=8_000, faster=faster, device=device)
+    return register(X, Y, f, g, epochs=3000, batch_size=8_000, faster=faster, device=device)
 
 def register(X_og, Y_og, f, g, epochs=3000, batch_size=20_000, faster=True, device="cuda:0"):
     """
@@ -162,7 +161,7 @@ def register(X_og, Y_og, f, g, epochs=3000, batch_size=20_000, faster=True, devi
     faster: True for faster running and more memory usage.  False for slower running and less memory usage
     """   
     debug_interval = 20
-    debug = False
+    debug = True
 
     _og_pos = Y_og.mean(axis=0)     
     _og_scale = torch.linalg.norm(Y_og - _og_pos, axis=1).mean()
@@ -197,39 +196,33 @@ def register(X_og, Y_og, f, g, epochs=3000, batch_size=20_000, faster=True, devi
 
         # scalar values, only used during debugging
         loss = 0.0
-
-        _R = torch.eye(4, device=device)
-        _R[:3, :3] = mat(d.tx, d.ty, d.tz)
-
-        _S = torch.eye(4, device=device)
-        _S[[0, 1, 2], [0, 1, 2]] = d.r.exp()
-
-        _T = torch.eye(4, device=device)
-        _T[0, 3] = d.x.item()
-        _T[1, 3] = d.y.item()
-        _T[2, 3] = d.z.item()
         
-        bigD = _T @ _S @ _R
+        bigD = (d.r.exp() * torch.eye(3, device=device)) @ mat(d.tx, d.ty, d.tz)
+        _T = torch.concat([d.x, d.y, d.z]).unsqueeze(0) # shape (1, 3)
 
         if (not faster): # longer running time but much less GPU memory usage
             # does backprop for each loss component separately to greatly reduce GPU ram usage
             # trans losses
-            temp = -torch.mean( (bigD @ g.log_prob(x_batch).T).T )
+            temp = -torch.mean( g.log_prob((bigD @ (x_batch + _T).T).T) )
             if ~(torch.isnan(temp) | torch.isinf(temp)):
                 temp.backward()
                 loss += temp.item()
             
-            temp = -torch.mean( (torch.linalg.inv(bigD) @ f.log_prob(y_batch).T).T )
+            temp = -torch.mean( f.log_prob(
+                    (torch.linalg.inv(bigD) @ (y_batch - _T).T).T
+            ))
             if ~(torch.isnan(temp) | torch.isinf(temp)):
                 temp.backward()
                 loss += temp.item()
             
         else: # for big GPU, can do backprop all at once
             temp = \
-                - torch.mean( (bigD @ g.log_prob(x_batch).T).T ) \
-                - torch.mean( (torch.linalg.inv(bigD) @ f.log_prob(y_batch).T).T )
+                - torch.mean( g.log_prob((bigD @ (x_batch + _T).T).T) ) \
+                - torch.mean( f.log_prob(
+                    (torch.linalg.inv(bigD) @ (y_batch - _T).T).T
+                ))
             
-            if ~(torch.isnan(loss) | torch.isinf(loss)):
+            if ~(torch.isnan(temp) | torch.isinf(temp)):
                 temp.backward()
             # below only used for visualizing loss changes during training
             loss += temp.item()
@@ -270,48 +263,48 @@ def register(X_og, Y_og, f, g, epochs=3000, batch_size=20_000, faster=True, devi
                 print(H.H)
                 print('---------------------')
 
-                # save plots as 3 figures
-                fig, ((ax1, ax2, ax3, ax4), (ax5, ax6, ax7, _), (ax9, ax10, ax11, _)) = plt.subplots(3, 4, figsize=(24, 10), layout='tight')
+                # # save plots as 3 figures
+                # fig, ((ax1, ax2, ax3, ax4), (ax5, ax6, ax7, _), (ax9, ax10, ax11, _)) = plt.subplots(3, 4, figsize=(24, 10), layout='tight')
         
-                # x, y, z, r
-                _ = ax1.hist(X.detach().cpu().numpy()[:, 0], bins=100, alpha=0.5, density=True, label='pred')
-                _ = ax1.hist(Y_og.detach().cpu().numpy()[:, 0], bins=100, alpha=0.5, density=True, label='GT')
-                ax1.legend()
-                ax1.set_title("X axis")
+                # # x, y, z, r
+                # _ = ax1.hist(X.detach().cpu().numpy()[:, 0], bins=100, alpha=0.5, density=True, label='pred')
+                # _ = ax1.hist(Y_og.detach().cpu().numpy()[:, 0], bins=100, alpha=0.5, density=True, label='GT')
+                # ax1.legend()
+                # ax1.set_title("X axis")
 
-                _ = ax2.hist(X.detach().cpu().numpy()[:, 1], bins=100, alpha=0.5, density=True, label='pred')
-                _ = ax2.hist(Y_og.detach().cpu().numpy()[:, 1], bins=100, alpha=0.5, density=True, label='GT')
-                ax2.legend()
-                ax2.set_title("Y axis")
+                # _ = ax2.hist(X.detach().cpu().numpy()[:, 1], bins=100, alpha=0.5, density=True, label='pred')
+                # _ = ax2.hist(Y_og.detach().cpu().numpy()[:, 1], bins=100, alpha=0.5, density=True, label='GT')
+                # ax2.legend()
+                # ax2.set_title("Y axis")
 
-                _ = ax3.hist(X.detach().cpu().numpy()[:, 2], bins=100, alpha=0.5, density=True, label='pred')
-                _ = ax3.hist(Y_og.detach().cpu().numpy()[:, 2], bins=100, alpha=0.5, density=True, label='GT')
-                ax3.legend()
-                ax3.set_title("Z axis")
+                # _ = ax3.hist(X.detach().cpu().numpy()[:, 2], bins=100, alpha=0.5, density=True, label='pred')
+                # _ = ax3.hist(Y_og.detach().cpu().numpy()[:, 2], bins=100, alpha=0.5, density=True, label='GT')
+                # ax3.legend()
+                # ax3.set_title("Z axis")
 
-                _ = ax4.hist((X-X.mean(axis=0)).norm(dim=1).detach().cpu().numpy(), bins=100, alpha=0.5, density=True, label='pred')
-                _ = ax4.hist((Y_og-Y_og.mean(axis=0)).norm(dim=1).detach().cpu().numpy(), bins=100, alpha=0.5, density=True, label='GT')
-                ax4.legend()
-                ax4.set_title("Norm")
+                # _ = ax4.hist((X-X.mean(axis=0)).norm(dim=1).detach().cpu().numpy(), bins=100, alpha=0.5, density=True, label='pred')
+                # _ = ax4.hist((Y_og-Y_og.mean(axis=0)).norm(dim=1).detach().cpu().numpy(), bins=100, alpha=0.5, density=True, label='GT')
+                # ax4.legend()
+                # ax4.set_title("Norm")
 
-                # xy, yz, zr
-                _ = ax5.hist2d((X-X.mean(axis=0))[:, 0].detach().cpu().numpy(), (X-X.mean(axis=0))[:, 1].detach().cpu().numpy(), bins=100)
-                _ = ax9.hist2d((Y_og-Y_og.mean(axis=0))[:, 0].detach().cpu().numpy(), (Y_og-Y_og.mean(axis=0))[:, 1].detach().cpu().numpy(), bins=100)
-                ax5.set_title("XY Projection (pred)")
-                ax9.set_title("XY Projection ( GT )")
+                # # xy, yz, zr
+                # _ = ax5.hist2d((X-X.mean(axis=0))[:, 0].detach().cpu().numpy(), (X-X.mean(axis=0))[:, 1].detach().cpu().numpy(), bins=100)
+                # _ = ax9.hist2d((Y_og-Y_og.mean(axis=0))[:, 0].detach().cpu().numpy(), (Y_og-Y_og.mean(axis=0))[:, 1].detach().cpu().numpy(), bins=100)
+                # ax5.set_title("XY Projection (pred)")
+                # ax9.set_title("XY Projection ( GT )")
 
-                _ = ax6.hist2d((X-X.mean(axis=0))[:, 1].detach().cpu().numpy(), (X-X.mean(axis=0))[:, 2].detach().cpu().numpy(), bins=100)
-                _ = ax10.hist2d((Y_og-Y_og.mean(axis=0))[:, 1].detach().cpu().numpy(), (Y_og-Y_og.mean(axis=0))[:, 2].detach().cpu().numpy(), bins=100)
-                ax6.set_title("YZ Projection (pred)")
-                ax10.set_title("YZ Projection ( GT )")
+                # _ = ax6.hist2d((X-X.mean(axis=0))[:, 1].detach().cpu().numpy(), (X-X.mean(axis=0))[:, 2].detach().cpu().numpy(), bins=100)
+                # _ = ax10.hist2d((Y_og-Y_og.mean(axis=0))[:, 1].detach().cpu().numpy(), (Y_og-Y_og.mean(axis=0))[:, 2].detach().cpu().numpy(), bins=100)
+                # ax6.set_title("YZ Projection (pred)")
+                # ax10.set_title("YZ Projection ( GT )")
 
-                _ = ax7.hist2d((X-X.mean(axis=0))[:, 0].detach().cpu().numpy(), (X-X.mean(axis=0))[:, 2].detach().cpu().numpy(), bins=100)
-                _ = ax11.hist2d((Y_og-Y_og.mean(axis=0))[:, 0].detach().cpu().numpy(), (Y_og-Y_og.mean(axis=0))[:, 2].detach().cpu().numpy(), bins=100)
-                ax7.set_title("XZ Projection (pred)")
-                ax11.set_title("XZ Projection ( GT )")
+                # _ = ax7.hist2d((X-X.mean(axis=0))[:, 0].detach().cpu().numpy(), (X-X.mean(axis=0))[:, 2].detach().cpu().numpy(), bins=100)
+                # _ = ax11.hist2d((Y_og-Y_og.mean(axis=0))[:, 0].detach().cpu().numpy(), (Y_og-Y_og.mean(axis=0))[:, 2].detach().cpu().numpy(), bins=100)
+                # ax7.set_title("XZ Projection (pred)")
+                # ax11.set_title("XZ Projection ( GT )")
 
-                fig.savefig(f"figs/E{epoch}.png")
-                plt.close('all')
+                # fig.savefig(f"figs/E{epoch}.png")
+                # plt.close('all')
 
         # Update loss on progress bar
         progress_bar.set_postfix({'Loss': f"{loss:.2f}"})
