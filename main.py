@@ -9,7 +9,7 @@ import argparse
 
 # my functions
 from format_conversions import ply_to_np, np_to_ply, np_to_xyz
-from trainer import DP_PCR
+from trainer_coupled import DP_PCR
 from metrics import compute_metrics
 from utils import shuffle, add_noise, jitter, axis_angle_to_matrix
 from visualize import visualize

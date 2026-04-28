@@ -57,7 +57,16 @@ class KDE_Estimator:
         best_factor = None
 
         kf = KFold(n_splits=cv_folds, shuffle=True, random_state=42)
-        for factor in np.logspace(-2, 1, 20).tolist():
+
+        scale = self._get_scipy_scale(x)
+        # Adapt factor range smoothly: smaller std then shift search higher
+        # This prevents underflow without hardcoded thresholds
+        shift = 1.0 * (1.0 - np.log10(scale + 1.0))
+        log_factor_min = -2.0 + shift
+        log_factor_max = 1.0 + shift
+        factors = np.logspace(log_factor_min, log_factor_max, 20).tolist()
+
+        for factor in factors:
 
             # calculate average score over all folds
             scores = []

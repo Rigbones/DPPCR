@@ -8,4 +8,5 @@ temp.py
 *.png
 *.ipynb
 *.txt
+*.npy
 TODO.txt
