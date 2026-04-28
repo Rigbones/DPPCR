@@ -11,6 +11,8 @@ import matplotlib.pyplot as plt
 from flow_models import RealNVP_Flow, Lipschitz_Flow, KDE_Estimator
 from visualize import visualize
 
+from pytorch3d.loss import chamfer_distance
+
 def learn_pdf(x, epochs=3000, batch_size=150_000, model='RealNVP', save=None, device='cuda:0'):
     """
     Args:
@@ -170,10 +172,11 @@ def register(X_og, Y_og, f, g, epochs=3000, batch_size=20_000, faster=True, devi
     H = Homo(device)
 
     grads = []
+    chamfers = []
 
     # actually using one optimizer would suffice
-    optimizer1 = torch.optim.SGD([d.x, d.y, d.z, d.r], lr=9e-3)
-    optimizer2 = torch.optim.SGD([d.tx, d.ty, d.tz], lr=9e-4)
+    optimizer1 = torch.optim.SGD([d.x, d.y, d.z, d.r], lr=9e-4)
+    optimizer2 = torch.optim.SGD([d.tx, d.ty, d.tz], lr=9e-5)
     scheduler1 = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer1, T_max=epochs // 1.2, eta_min=1e-4)
     scheduler2 = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer2, T_max=epochs // 1.2, eta_min=1e-5)
 
@@ -232,11 +235,11 @@ def register(X_og, Y_og, f, g, epochs=3000, batch_size=20_000, faster=True, devi
         scheduler1.step()
         scheduler2.step()
 
-        grads.append(
-            np.concat([
-                _.grad.detach().cpu() for _ in (d.x, d.y, d.z, d.r, d.tx, d.ty, d.tz)
-            ])
-        )
+        # grads.append(
+        #     np.concat([
+        #         _.detach().cpu() for _ in (d.x, d.y, d.z, d.r, d.tx, d.ty, d.tz)
+        #     ])
+        # )
 
         # update point cloud X based on differentials
         with torch.no_grad():
@@ -245,6 +248,9 @@ def register(X_og, Y_og, f, g, epochs=3000, batch_size=20_000, faster=True, devi
             X = (H.H[:3, :3] @ X_og.T).T + H.H[:3, 3]
             Y = (H.H.inverse()[:3, :3] @ Y_og.T).T + H.H.inverse()[:3, 3]
             d.zero_() # zero out differentials        
+
+            chamfers.append(chamfer_distance(X.unsqueeze(0), Y.unsqueeze(0))[0].item())
+
 
             if debug and ((epoch % debug_interval == 0) or (epoch == epochs - 1)):
                 # set torch to only print 3 decimal places and no scientific notation
@@ -272,6 +278,8 @@ def register(X_og, Y_og, f, g, epochs=3000, batch_size=20_000, faster=True, devi
                     marker_size = 0.7
                 )
 
+            
+
         # Update loss on progress bar
         progress_bar.set_postfix({'Loss': f"{loss:.2f}"})
 
@@ -287,6 +295,8 @@ def register(X_og, Y_og, f, g, epochs=3000, batch_size=20_000, faster=True, devi
                 marker_size = 0.7
             )
 
-    np.savetxt("grads_coupled.txt", np.array(grads))
+
+    # np.savetxt("grads_coupled.txt", np.array(grads))
+    np.savetxt("del_coupled.txt", np.array(chamfers))
     return H.H.cpu().numpy()
 

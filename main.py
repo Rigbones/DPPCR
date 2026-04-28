@@ -260,7 +260,6 @@ if __name__ == "__main__":
             if (args.visualize == 1):
                 visualize([(pred[:3, :3] @ X_clean.T).T + pred[:3, 3], Y], ['blue', 'red'], show=False, save=f"figs/M7.png")
 
-        
         if (9 in args.methods): # run ours without final ICP
             start = perf_counter()
             pred = DP_PCR(X, Y, device=f'cuda:{args.portion}' if args.device is None else f'cuda:{args.device}')

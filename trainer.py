@@ -11,6 +11,8 @@ import matplotlib.pyplot as plt
 from flow_models import RealNVP_Flow, Lipschitz_Flow, KDE_Estimator
 from visualize import visualize
 
+from pytorch3d.loss import chamfer_distance
+
 def learn_pdf(x, epochs=3000, batch_size=150_000, model='RealNVP', save=None, device='cuda:0'):
     """
     Args:
@@ -183,6 +185,7 @@ def register(X_og, Y_og, f1, f2, f3, f4, f5, f6, f7, g1, g2, g3, g4, g5, g6, g7,
     H = Homo(device)
 
     grads = []
+    chamfers = []
 
     # actually using one optimizer would suffice
     optimizer1 = torch.optim.SGD([d.x, d.y, d.z, d.r], lr=9e-3)
@@ -194,6 +197,7 @@ def register(X_og, Y_og, f1, f2, f3, f4, f5, f6, f7, g1, g2, g3, g4, g5, g6, g7,
     Y = Y_og.clone()
 
     progress_bar = tqdm(range(epochs))
+
     for epoch in progress_bar:
         optimizer1.zero_grad()
         optimizer2.zero_grad()
@@ -329,11 +333,11 @@ def register(X_og, Y_og, f1, f2, f3, f4, f5, f6, f7, g1, g2, g3, g4, g5, g6, g7,
         scheduler1.step()
         scheduler2.step()
 
-        grads.append(
-            np.concat([
-                _.grad.detach().cpu() for _ in (d.x, d.y, d.z, d.r, d.tx, d.ty, d.tz)
-            ])
-        )
+        # grads.append(
+        #     np.concat([
+        #         _.detach().cpu() for _ in (d.x, d.y, d.z, d.r, d.tx, d.ty, d.tz)
+        #     ])
+        # )
 
         # update point cloud X based on differentials
         with torch.no_grad():
@@ -342,6 +346,8 @@ def register(X_og, Y_og, f1, f2, f3, f4, f5, f6, f7, g1, g2, g3, g4, g5, g6, g7,
             X = (H.H[:3, :3] @ X_og.T).T + H.H[:3, 3]
             Y = (H.H.inverse()[:3, :3] @ Y_og.T).T + H.H.inverse()[:3, 3]
             d.zero_() # zero out differentials        
+
+            chamfers.append(chamfer_distance(X.unsqueeze(0), Y.unsqueeze(0))[0].item())
 
             if debug and ((epoch % debug_interval == 0) or (epoch == epochs - 1)):
                 # set torch to only print 3 decimal places and no scientific notation
@@ -406,6 +412,8 @@ def register(X_og, Y_og, f1, f2, f3, f4, f5, f6, f7, g1, g2, g3, g4, g5, g6, g7,
         # Update loss on progress bar
         progress_bar.set_postfix({'Loss': f"{loss_trans+loss_scale+loss_rot:.2f}"})
 
+        
+
     if debug:
         with torch.no_grad():
             # plot original pcd
@@ -426,6 +434,14 @@ def register(X_og, Y_og, f1, f2, f3, f4, f5, f6, f7, g1, g2, g3, g4, g5, g6, g7,
                 marker_size = 0.7
             )
 
-    np.savetxt("grads_decoupled.txt", np.array(grads))
+            # plot chamfer
+            plt.plot(chamfers)
+            plt.xlabel("Epoch")
+            plt.ylabel("Chamfer Distance")
+            plt.savefig(f"figs/E{epochs}_chamfer_decoupled.png")
+            plt.close()
+
+    # np.savetxt("grads_decoupled.txt", np.array(grads))
+    np.savetxt("del_decoupled.txt", np.array(chamfers))
     return H.H.cpu().numpy()
 

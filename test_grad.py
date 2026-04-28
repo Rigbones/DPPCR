@@ -26,9 +26,9 @@ for name in filenames:
 
     ### Rotation ###
     if (mode == 'rotation'):
-        R1 = axis_angle_to_matrix([1, 0, 0], np.radians(rng.uniform(0, 40))) # (3, 3)
-        R2 = axis_angle_to_matrix([0, 1, 0], np.radians(rng.uniform(0, 40))) # (3, 3)
-        R3 = axis_angle_to_matrix([0, 0, 1], np.radians(rng.uniform(0, 40))) # (3, 3)
+        R1 = axis_angle_to_matrix([1, 0, 0], np.radians(20)) # (3, 3)
+        R2 = axis_angle_to_matrix([0, 1, 0], np.radians(20)) # (3, 3)
+        R3 = axis_angle_to_matrix([0, 0, 1], np.radians(20)) # (3, 3)
         X = ((R1 @ R2 @ R3) @ Y.T).T
     ### Scale ###
     elif (mode == 'scale'):
@@ -45,10 +45,10 @@ for name in filenames:
     trainer_coupled.DP_PCR(X, Y, epochs=300, device=device)
     trainer.DP_PCR(X, Y, epochs=300, device=device)
 
-    coupled_list.append(np.loadtxt('grads_coupled.txt'))
-    decoupled_list.append(np.loadtxt('grads_decoupled.txt'))
+    coupled_list.append(np.loadtxt('del_coupled.txt'))
+    decoupled_list.append(np.loadtxt('del_decoupled.txt'))
 
-    # shape (908, 300, 7)
+    # shape (908, 300)
     np.save(f"{mode}_coupled_{half}.npy", np.stack(coupled_list, axis=0))
     np.save(f"{mode}_decoupled_{half}.npy", np.stack(decoupled_list, axis=0))
 
