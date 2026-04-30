@@ -251,7 +251,6 @@ def register(X_og, Y_og, f, g, epochs=3000, batch_size=20_000, faster=True, devi
 
             chamfers.append(chamfer_distance(X.unsqueeze(0), Y.unsqueeze(0))[0].item())
 
-
             if debug and ((epoch % debug_interval == 0) or (epoch == epochs - 1)):
                 # set torch to only print 3 decimal places and no scientific notation
                 torch.set_printoptions(precision=3, sci_mode=False)
