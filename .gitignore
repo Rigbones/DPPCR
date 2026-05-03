@@ -10,3 +10,12 @@ temp.py
 *.txt
 *.npy
 TODO.txt
+
+!all_coupled.npy
+!all_decoupled.npy
+!translation_coupled.npy
+!translation_decoupled.npy
+!rotation_coupled.npy
+!rotation_decoupled.npy
+!scale_coupled.npy
+!scale_decoupled.npy

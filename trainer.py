@@ -425,10 +425,11 @@ def register(X_og, Y_og, f1, f2, f3, f4, f5, f6, f7, g1, g2, g3, g4, g5, g6, g7,
                 marker_size = 0.7
             )
 
+            redblue = np.tile(np.array([[0, 0, 255], [255, 0, 0]]), (20000, 1)).astype(np.uint8)
             # plot registered result
             visualize(
                 [((H.H[:3, :3] @ X_og.T).T + H.H[:3, 3]).detach().cpu().numpy(), Y_og.detach().cpu().numpy()],
-                ['blue', 'red'],
+                [redblue[:20000], redblue[20000:]],
                 show = False,
                 save = f"figs/E{epochs}_result.png",
                 marker_size = 0.7

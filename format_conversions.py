@@ -2,7 +2,7 @@ import open3d as o3d
 from plyfile import PlyData
 import numpy as np
 
-def off_to_ply(off_path: str, ply_path: str, num_pts: int = 30_000):
+def off_to_ply(off_path: str, ply_path: str, num_pts: int = 15_000):
     """
     Converts an OFF mesh file to an ascii PLY point cloud by sampling points on the mesh surface.
     
@@ -12,7 +12,7 @@ def off_to_ply(off_path: str, ply_path: str, num_pts: int = 30_000):
         num_pts (int): Number of points to sample on the mesh surface.
     """
     mesh = o3d.io.read_triangle_mesh(off_path)
-    pcd = mesh.sample_points_uniformly(number_of_points=density)
+    pcd = mesh.sample_points_uniformly(number_of_points=num_pts)
     o3d.io.write_point_cloud(ply_path, pcd, write_ascii=True)
 
 def np_to_ply(ply_path: str, xyz: np.ndarray):

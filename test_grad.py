@@ -15,11 +15,11 @@ filenames = list(os.listdir("datasets/smol/"))
 filenames.sort()
 
 device = 'cuda:1'
-mode = 'scale' # 'rotation', 'scale', or 'translation'
+mode = 'all' # 'rotation', 'scale', 'translation', 'all'
 half = 'second' # 'first' or 'second'
 filenames = filenames[:450] if half == 'first' else filenames[450:]
 
-for name in filenames:
+for name in filenames: # just run one file for testing
     seed = int(name.split('_')[-1].split('.')[0]) # eg get 0681 from sofa_0681.ply
     rng = np.random.default_rng(seed)
     Y = ply_to_np("datasets/smol/" + name)
@@ -39,6 +39,16 @@ for name in filenames:
     elif (mode == 'translation'):
         T = np.array([1.0, 1.0, 1.0])
         X = Y + T
+    ### All ###
+    elif (mode == 'all'):
+        R1 = axis_angle_to_matrix([1, 0, 0], np.radians(20)) # (3, 3)
+        R2 = axis_angle_to_matrix([0, 1, 0], np.radians(20)) # (3, 3)
+        R3 = axis_angle_to_matrix([0, 0, 1], np.radians(20)) # (3, 3)
+        X = ((R1 @ R2 @ R3) @ Y.T).T
+        S = np.array([1.3])
+        X = S * X
+        T = np.array([1.0, 1.0, 1.0])
+        X = X + T
     else:
         raise ValueError(f"Invalid mode {mode}")
 
